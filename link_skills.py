@@ -223,6 +223,226 @@ def update_gitignore(repo_root, active_symlinks, dry_run=False):
         except Exception as e:
             print(f"Error: Failed to write to .gitignore: {e}")
 
+def get_agent_paths():
+    home = os.path.expanduser("~")
+    system = platform.system()
+    
+    agents_map = {
+        "claude code": [os.path.join(home, ".claude", "skills")],
+        "gemini": [os.path.join(home, ".gemini", "config", "skills")],
+        "antigravity": [
+            os.path.join(home, ".agent", "skills"),
+            os.path.join(home, ".agents", "skills")
+        ],
+        "kilocode": [
+            os.path.join(home, ".kilocode", "globalStorage", "kilo code.kilo-code", "skills"),
+            os.path.join(home, ".kilocode", "skills"),
+            os.path.join(home, ".kilo", "skills")
+        ],
+        "opencode": [os.path.join(home, ".opencode", "skills")],
+        "qwencode": [
+            os.path.join(home, ".qwencode", "skills"),
+            os.path.join(home, ".qwen", "skills")
+        ],
+        "aionui": [
+            os.path.join(home, "Library", "Application Support", "AionUi", "config", "skills") if system == "Darwin" else
+            os.path.join(os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming")), "AionUi", "config", "skills") if system == "Windows" else
+            os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(home, ".config")), "AionUi", "config", "skills")
+        ],
+        "kiro": [os.path.join(home, ".kiro", "skills")]
+    }
+    return agents_map
+
+def setup_agent_links(repo_root, active_symlinks, dry_run=False):
+    import time
+    agents_map = get_agent_paths()
+    
+    print("\n" + "=" * 60)
+    print("AI Agent Global Skills Symlink Setup")
+    print("=" * 60)
+    print("This utility can link this repository to the global skills directory of your AI agents.")
+    print("When linked, the agent will automatically discover all the skills in this repository.")
+    print("=" * 60)
+    
+    agent_status = {}
+    ordered_agents = ["claude code", "gemini", "antigravity", "kilocode", "opencode", "qwencode", "aionui", "kiro"]
+    
+    for agent in ordered_agents:
+        paths = agents_map.get(agent, [])
+        linked_count = 0
+        colliding_count = 0
+        total_paths_checked = 0
+        
+        for p in paths:
+            if os.path.exists(p) and os.path.isdir(p):
+                total_paths_checked += 1
+                for skill in active_symlinks:
+                    skill_path = os.path.join(p, skill)
+                    if os.path.exists(skill_path) or os.path.islink(skill_path):
+                        if os.path.islink(skill_path):
+                            try:
+                                target = os.readlink(skill_path)
+                                target_abs = os.path.abspath(os.path.join(os.path.dirname(skill_path), target))
+                                # Check if target resolves inside repo_root
+                                if target_abs.startswith(repo_root):
+                                    linked_count += 1
+                                else:
+                                    colliding_count += 1
+                            except OSError:
+                                colliding_count += 1
+                        else:
+                            colliding_count += 1
+                            
+        if total_paths_checked == 0:
+            status = "Not Created"
+        elif active_symlinks and linked_count == len(active_symlinks) * total_paths_checked:
+            status = "All Linked"
+        elif linked_count > 0 or colliding_count > 0:
+            parts = []
+            if linked_count > 0:
+                parts.append(f"{linked_count} Linked")
+            if colliding_count > 0:
+                parts.append(f"{colliding_count} Colliding")
+            status = f"Partial ({', '.join(parts)})"
+        else:
+            status = "Exists (Folder)"
+            
+        agent_status[agent] = (status, paths)
+        
+    print("Select the agents you want to configure:")
+    for i, agent in enumerate(ordered_agents, 1):
+        status, _ = agent_status[agent]
+        print(f"  {i}) [ ] {agent:<15} ({status})")
+        
+    print("\nEnter numbers separated by commas (e.g. 1,3,5), 'all' to select all, or press Enter to skip:")
+    try:
+        user_input = input("> ").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        print("\nSkipping agent links setup.")
+        return
+        
+    if not user_input:
+        print("Skipping agent links setup.")
+        return
+        
+    selected_indices = []
+    if user_input == "all":
+        selected_indices = list(range(len(ordered_agents)))
+    else:
+        for val in user_input.split(","):
+            val = val.strip()
+            if val.isdigit():
+                idx = int(val) - 1
+                if 0 <= idx < len(ordered_agents):
+                    selected_indices.append(idx)
+                    
+    if not selected_indices:
+        print("No valid agents selected. Skipping.")
+        return
+        
+    selected_agents = [ordered_agents[idx] for idx in selected_indices]
+    print(f"\nYou selected: {', '.join(selected_agents)}")
+    
+    print("\n" + "!" * 60)
+    print("DISCLAIMER / WARNING:")
+    print("This operation will symlink the individual skills from this repository")
+    print("into the global 'skills' directory of the selected agent(s):")
+    print(f"  Target Repository: {repo_root}")
+    print("If any of these skills already exist in the agent's folder, they will be replaced.")
+    print("!" * 60)
+    
+    try:
+        backup_input = input("\nDo you want to backup any colliding skill folders into .bak files first? (y/n) [y]: ").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        print("\nOperation cancelled.")
+        return
+        
+    do_backup = backup_input != 'n'
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    
+    for agent in selected_agents:
+        status, paths = agent_status[agent]
+        print(f"\nConfiguring {agent}...")
+        
+        for p in paths:
+            p_dir = os.path.dirname(p)
+            
+            # If the folder itself is a symlink (legacy behavior), remove it and make it a real directory
+            if os.path.islink(p):
+                print(f"  [-] Removing legacy agent folder symlink: {p}")
+                if not dry_run:
+                    remove_link(p)
+                    os.makedirs(p, exist_ok=True)
+            elif not os.path.exists(p):
+                print(f"  [+] Creating agent skills folder: {p}")
+                if not dry_run:
+                    os.makedirs(p, exist_ok=True)
+            
+            # Link each individual skill
+            for skill in active_symlinks:
+                skill_dest = os.path.join(p, skill)
+                skill_src = os.path.join(repo_root, skill)
+                
+                if os.path.exists(skill_dest) or os.path.islink(skill_dest):
+                    is_curr_link = False
+                    if os.path.islink(skill_dest):
+                        try:
+                            target = os.readlink(skill_dest)
+                            target_abs = os.path.abspath(os.path.join(p, target))
+                            # If it points to our repo_root and has the same skill name
+                            if target_abs == os.path.abspath(skill_src) or target_abs.startswith(repo_root):
+                                is_curr_link = True
+                        except OSError:
+                            pass
+                    
+                    if is_curr_link:
+                        # Already linked, nothing to do
+                        continue
+                        
+                    # Collision!
+                    print(f"  [!] Collision: Skill '{skill}' already exists in {p}")
+                    if do_backup and not os.path.islink(skill_dest):
+                        backup_base = f"{skill_dest}_{timestamp}.bak"
+                        print(f"    [*] Backing up existing skill to {backup_base}.bak...")
+                        if not dry_run:
+                            try:
+                                if os.path.isdir(skill_dest):
+                                    zip_file = shutil.make_archive(backup_base, 'zip', skill_dest)
+                                    bak_file = backup_base + ".bak"
+                                    if os.path.exists(bak_file):
+                                        os.remove(bak_file)
+                                    os.rename(zip_file, bak_file)
+                                    print(f"    [+] Backup created: {bak_file}")
+                                else:
+                                    bak_file = backup_base + ".bak"
+                                    shutil.copy2(skill_dest, bak_file)
+                                    print(f"    [+] Backup created: {bak_file}")
+                            except Exception as e:
+                                print(f"    [!] Failed to create backup: {e}")
+                                print("    [!] Skipping this skill to prevent data loss.")
+                                continue
+                                
+                    print(f"    [-] Removing colliding skill: {skill_dest}")
+                    if not dry_run:
+                        try:
+                            if os.path.islink(skill_dest):
+                                remove_link(skill_dest)
+                            elif os.path.isdir(skill_dest):
+                                shutil.rmtree(skill_dest)
+                            else:
+                                os.remove(skill_dest)
+                        except Exception as e:
+                            print(f"    [!] Failed to remove colliding skill: {e}")
+                            continue
+                
+                print(f"  [+] Creating symlink: {skill_dest} -> {skill_src}")
+                if not dry_run:
+                    success, link_type = create_link(skill_src, skill_dest, dry_run=dry_run)
+                    if success:
+                        print(f"    [+] Linked via {link_type}!")
+                    else:
+                        print(f"    [!] Failed to link: {link_type}")
+
 def main():
     # Parse arguments
     dry_run = "--dry-run" in sys.argv or "-d" in sys.argv
@@ -272,15 +492,59 @@ def main():
                     print("[+] Removed legacy flat_skills/ directory.")
                 except Exception as e:
                     print(f"[!] Warning: Failed to remove legacy flat_skills/ directory: {e}")
-                    
+        # Clean up agent symlinks if any
+        agents_map = get_agent_paths()
+        agent_cleaned_count = 0
+        for agent, paths in agents_map.items():
+            for p in paths:
+                # Check if the folder itself is a symlink pointing to repo_root (legacy compatibility)
+                if os.path.islink(p):
+                    try:
+                        target = os.readlink(p)
+                        target_abs = os.path.abspath(os.path.join(os.path.dirname(p), target))
+                        if target_abs == repo_root:
+                            if dry_run:
+                                print(f"[DRY-RUN] Would remove agent folder symlink: {p}")
+                                agent_cleaned_count += 1
+                            else:
+                                if remove_link(p):
+                                    print(f"[x] Removed agent folder symlink: {p}")
+                                    agent_cleaned_count += 1
+                                else:
+                                    print(f"[!] Failed to remove agent folder symlink: {p}")
+                    except OSError:
+                        pass
+                # Otherwise, if it's a directory, clean up individual skill symlinks inside it
+                elif os.path.exists(p) and os.path.isdir(p):
+                    try:
+                        for item in os.listdir(p):
+                            item_path = os.path.join(p, item)
+                            if os.path.islink(item_path):
+                                target = os.readlink(item_path)
+                                target_abs = os.path.abspath(os.path.join(p, target))
+                                if target_abs.startswith(repo_root):
+                                    if dry_run:
+                                        print(f"[DRY-RUN] Would remove agent skill symlink: {item_path}")
+                                        agent_cleaned_count += 1
+                                    else:
+                                        if remove_link(item_path):
+                                            print(f"[x] Removed agent skill symlink: {item_path}")
+                                            agent_cleaned_count += 1
+                                        else:
+                                            print(f"[!] Failed to remove agent skill symlink: {item_path}")
+                    except Exception as e:
+                        print(f"[!] Error scanning {p} for cleanup: {e}")
+                        
         update_gitignore(repo_root, set(), dry_run=dry_run)
         
         print("=" * 60)
         print("Cleanup Summary:")
         if dry_run:
-            print(f"  Links to remove: {cleaned_count}")
+            print(f"  Local links to remove: {cleaned_count}")
+            print(f"  Agent links to remove: {agent_cleaned_count}")
         else:
-            print(f"  Links removed:   {cleaned_count}")
+            print(f"  Local links removed:   {cleaned_count}")
+            print(f"  Agent links removed:   {agent_cleaned_count}")
         print("=" * 60)
         sys.exit(0)
         
@@ -416,6 +680,10 @@ def main():
         print(f"  Obsolete links removed: {cleaned_count}")
         print("All active links are stored directly in the repository root directory.")
     print("=" * 60)
+
+    # Prompt user to link global agent skill directories if running interactively
+    if sys.stdin.isatty() and not ("--non-interactive" in sys.argv or "--yes" in sys.argv):
+        setup_agent_links(repo_root, active_symlinks, dry_run=dry_run)
 
 if __name__ == "__main__":
     main()

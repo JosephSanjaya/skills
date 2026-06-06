@@ -1,5 +1,7 @@
 .DS_Store
 cooking/
+.idea
+**.skill
 # BEGIN GENERATED SKILL SYMLINKS
 android-build-agp-agp-9-upgrade
 android-camera-camera1-to-camerax

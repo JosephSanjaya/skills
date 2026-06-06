@@ -253,7 +253,142 @@ def get_agent_paths():
     }
     return agents_map
 
-def setup_agent_links(repo_root, active_symlinks, dry_run=False):
+def interactive_agent_selection(agents, agent_status):
+    """
+    Interactive checkbox-style selection using keyboard controls.
+    Returns a list of selected agent names.
+    """
+    import sys
+    import tty
+    import termios
+    
+    # Check if we're in a TTY (terminal with keyboard input)
+    if not sys.stdin.isatty():
+        print("Not running in interactive terminal. Using fallback selection.")
+        return fallback_agent_selection(agents, agent_status)
+    
+    selections = {agent: False for agent in agents}
+    current_index = 0
+    
+    def get_char():
+        """Read a single character from stdin."""
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            char = sys.stdin.read(1)
+            # Handle escape sequences (arrow keys)
+            if char == '\x1b':
+                char += sys.stdin.read(2)
+            return char
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    
+    def display_menu():
+        """Display the selection menu."""
+        # Clear screen and move cursor to top
+        print("\033[2J\033[H", end='')
+        
+        print("=" * 60)
+        print("Select agents to configure (use arrow keys to navigate):")
+        print("=" * 60)
+        print("Controls:")
+        print("  ↑/↓ or k/j  : Move selection")
+        print("  SPACE       : Toggle checkbox")
+        print("  a           : Select all")
+        print("  c           : Clear all selections")
+        print("  ENTER       : Confirm and continue")
+        print("  q or ESC    : Cancel")
+        print("=" * 60)
+        print()
+        
+        for i, agent in enumerate(agents):
+            status, _ = agent_status[agent]
+            checkbox = "[✓]" if selections[agent] else "[ ]"
+            cursor = "→ " if i == current_index else "  "
+            highlight = "\033[1;36m" if i == current_index else ""
+            reset = "\033[0m" if i == current_index else ""
+            print(f"{cursor}{highlight}{checkbox} {agent:<15} ({status}){reset}")
+        
+        print()
+        selected_count = sum(selections.values())
+        print(f"Selected: {selected_count} agent(s)")
+    
+    # Main interaction loop
+    try:
+        while True:
+            display_menu()
+            
+            char = get_char()
+            
+            # Handle arrow keys and vim-style navigation
+            if char == '\x1b[A' or char == 'k':  # Up arrow or k
+                current_index = (current_index - 1) % len(agents)
+            elif char == '\x1b[B' or char == 'j':  # Down arrow or j
+                current_index = (current_index + 1) % len(agents)
+            elif char == ' ':  # Space - toggle current selection
+                current_agent = agents[current_index]
+                selections[current_agent] = not selections[current_agent]
+            elif char == 'a':  # Select all
+                for agent in agents:
+                    selections[agent] = True
+            elif char == 'c':  # Clear all
+                for agent in agents:
+                    selections[agent] = False
+            elif char == '\r' or char == '\n':  # Enter - confirm
+                break
+            elif char == 'q' or char == '\x1b':  # q or ESC - cancel
+                print("\nCancelled.")
+                return []
+            elif char == '\x03':  # Ctrl+C
+                print("\nCancelled.")
+                return []
+    except (KeyboardInterrupt, EOFError):
+        print("\nCancelled.")
+        return []
+    
+    # Return list of selected agents
+    return [agent for agent in agents if selections[agent]]
+
+def fallback_agent_selection(agents, agent_status):
+    """
+    Fallback selection method for non-interactive terminals.
+    Uses simple text input.
+    """
+    print("Select the agents you want to configure:")
+    for i, agent in enumerate(agents, 1):
+        status, _ = agent_status[agent]
+        print(f"  {i}) [ ] {agent:<15} ({status})")
+        
+    print("\nEnter numbers separated by commas (e.g. 1,3,5), 'all' to select all, or press Enter to skip:")
+    try:
+        user_input = input("> ").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        print("\nSkipping agent links setup.")
+        return []
+        
+    if not user_input:
+        print("Skipping agent links setup.")
+        return []
+        
+    selected_indices = []
+    if user_input == "all":
+        selected_indices = list(range(len(agents)))
+    else:
+        for val in user_input.split(","):
+            val = val.strip()
+            if val.isdigit():
+                idx = int(val) - 1
+                if 0 <= idx < len(agents):
+                    selected_indices.append(idx)
+                    
+    if not selected_indices:
+        print("No valid agents selected. Skipping.")
+        return []
+        
+    return [agents[idx] for idx in selected_indices]
+
+def setup_agent_links(repo_root, active_symlinks, all_skill_folders, dry_run=False):
     import time
     agents_map = get_agent_paths()
     
@@ -263,6 +398,13 @@ def setup_agent_links(repo_root, active_symlinks, dry_run=False):
     print("This utility can link this repository to the global skills directory of your AI agents.")
     print("When linked, the agent will automatically discover all the skills in this repository.")
     print("=" * 60)
+    
+    # For agent installation, include all skill folders except 'cooking'
+    agent_skills = {skill for skill in all_skill_folders if skill != "cooking"}
+    
+    if not dry_run:
+        print(f"\nPreparing to install {len(agent_skills)} skills to agents")
+        print(f"  (Excluding 'cooking' folder if present)")
     
     agent_status = {}
     ordered_agents = ["claude code", "gemini", "antigravity", "kilocode", "opencode", "qwencode", "aionui", "kiro"]
@@ -276,7 +418,7 @@ def setup_agent_links(repo_root, active_symlinks, dry_run=False):
         for p in paths:
             if os.path.exists(p) and os.path.isdir(p):
                 total_paths_checked += 1
-                for skill in active_symlinks:
+                for skill in agent_skills:
                     skill_path = os.path.join(p, skill)
                     if os.path.exists(skill_path) or os.path.islink(skill_path):
                         if os.path.islink(skill_path):
@@ -295,7 +437,7 @@ def setup_agent_links(repo_root, active_symlinks, dry_run=False):
                             
         if total_paths_checked == 0:
             status = "Not Created"
-        elif active_symlinks and linked_count == len(active_symlinks) * total_paths_checked:
+        elif agent_skills and linked_count == len(agent_skills) * total_paths_checked:
             status = "All Linked"
         elif linked_count > 0 or colliding_count > 0:
             parts = []
@@ -309,38 +451,13 @@ def setup_agent_links(repo_root, active_symlinks, dry_run=False):
             
         agent_status[agent] = (status, paths)
         
-    print("Select the agents you want to configure:")
-    for i, agent in enumerate(ordered_agents, 1):
-        status, _ = agent_status[agent]
-        print(f"  {i}) [ ] {agent:<15} ({status})")
-        
-    print("\nEnter numbers separated by commas (e.g. 1,3,5), 'all' to select all, or press Enter to skip:")
-    try:
-        user_input = input("> ").strip().lower()
-    except (KeyboardInterrupt, EOFError):
-        print("\nSkipping agent links setup.")
+    # Interactive checkbox selection
+    selected_agents = interactive_agent_selection(ordered_agents, agent_status)
+    
+    if not selected_agents:
+        print("No agents selected. Skipping agent links setup.")
         return
         
-    if not user_input:
-        print("Skipping agent links setup.")
-        return
-        
-    selected_indices = []
-    if user_input == "all":
-        selected_indices = list(range(len(ordered_agents)))
-    else:
-        for val in user_input.split(","):
-            val = val.strip()
-            if val.isdigit():
-                idx = int(val) - 1
-                if 0 <= idx < len(ordered_agents):
-                    selected_indices.append(idx)
-                    
-    if not selected_indices:
-        print("No valid agents selected. Skipping.")
-        return
-        
-    selected_agents = [ordered_agents[idx] for idx in selected_indices]
     print(f"\nYou selected: {', '.join(selected_agents)}")
     
     print("\n" + "!" * 60)
@@ -379,9 +496,17 @@ def setup_agent_links(repo_root, active_symlinks, dry_run=False):
                     os.makedirs(p, exist_ok=True)
             
             # Link each individual skill
-            for skill in active_symlinks:
+            for skill in agent_skills:
                 skill_dest = os.path.join(p, skill)
-                skill_src = os.path.join(repo_root, skill)
+                # For root-level skills, source is directly in repo_root
+                # For nested skills that were symlinked, follow the symlink
+                potential_symlink = os.path.join(repo_root, skill)
+                if os.path.islink(potential_symlink):
+                    # This is a nested skill that was symlinked locally
+                    skill_src = os.path.abspath(os.path.join(repo_root, os.readlink(potential_symlink)))
+                else:
+                    # This is a root-level skill folder
+                    skill_src = os.path.join(repo_root, skill)
                 
                 if os.path.exists(skill_dest) or os.path.islink(skill_dest):
                     is_curr_link = False
@@ -587,6 +712,7 @@ def main():
     print(f"Found {len(skills_found)} SKILL.md file(s). Evaluating...")
     
     active_symlinks = set()
+    all_skill_folders = set()  # Track all skill folders for agent installation
     links_created = 0
     templates_skipped = 0
     direct_skipped = 0
@@ -604,6 +730,8 @@ def main():
         path_parts = rel_skill_dir.split(os.sep)
         if len(path_parts) == 1:
             print(f"[~] Skipping root-level skill (already direct): {rel_skill_dir}")
+            # Add to all_skill_folders for agent installation
+            all_skill_folders.add(rel_skill_dir)
             direct_skipped += 1
             continue
             
@@ -613,6 +741,7 @@ def main():
             
         link_path = os.path.join(repo_root, symlink_name)
         active_symlinks.add(symlink_name)
+        all_skill_folders.add(symlink_name)  # Add to all_skill_folders for agent installation
         
         success, link_type = create_link(skill_dir, link_path, dry_run=dry_run)
         if success:
@@ -679,11 +808,13 @@ def main():
         print(f"  Links active/created:  {links_created}")
         print(f"  Obsolete links removed: {cleaned_count}")
         print("All active links are stored directly in the repository root directory.")
+    print(f"\n  Skills available for agent installation: {len(all_skill_folders)}")
+    print(f"  (All skills except 'cooking')")
     print("=" * 60)
 
     # Prompt user to link global agent skill directories if running interactively
     if sys.stdin.isatty() and not ("--non-interactive" in sys.argv or "--yes" in sys.argv):
-        setup_agent_links(repo_root, active_symlinks, dry_run=dry_run)
+        setup_agent_links(repo_root, active_symlinks, all_skill_folders, dry_run=dry_run)
 
 if __name__ == "__main__":
     main()

@@ -96,10 +96,15 @@ def get_symlink_name(rel_path):
     Generates a symlink name based on the naming convention:
     android(first section of the first folder)-(secondfolder)-name of skills
     
+    Special handling:
+    - Skips "skills" subfolder in the path to avoid redundancy
+    - Removes duplicate prefix if skill name starts with the same word
+    
     Examples:
       android-official-skills/jetpack-compose/adaptive -> android-jetpack-compose-adaptive
       compose-performance-skills/stability/stabilizing-compose-types -> compose-stability-stabilizing-compose-types
-      anthropics-skills/skills/theme-factory -> anthropics-skills-theme-factory
+      anthropics-skills/skills/theme-factory -> anthropics-theme-factory (skips "skills")
+      kotlin-official-skills/skills/kotlin-tooling-agp9-migration -> kotlin-tooling-agp9-migration (removes duplicate "kotlin")
       optimize-prompt -> optimize-prompt
     """
     parts = rel_path.split(os.sep)
@@ -113,9 +118,21 @@ def get_symlink_name(rel_path):
     first_section = first_folder.split('-')[0]
     
     middle_folders = parts[1:-1]
+    # Filter out "skills" subfolder to avoid redundancy
+    middle_folders = [folder for folder in middle_folders if folder.lower() != "skills"]
+    
     last_folder = parts[-1]
     
-    name_parts = [first_section] + middle_folders + [last_folder]
+    # Check if the last folder starts with the first section
+    # If so, don't include the first section to avoid duplication
+    last_folder_parts = last_folder.split('-')
+    if last_folder_parts[0].lower() == first_section.lower():
+        # The skill name already starts with the prefix, skip the first section
+        name_parts = middle_folders + [last_folder]
+    else:
+        # Normal case: include first section
+        name_parts = [first_section] + middle_folders + [last_folder]
+    
     return '-'.join(name_parts)
 
 def remove_link(link_path):
@@ -388,7 +405,7 @@ def fallback_agent_selection(agents, agent_status):
         
     return [agents[idx] for idx in selected_indices]
 
-def setup_agent_links(repo_root, active_symlinks, all_skill_folders, dry_run=False):
+def setup_agent_links(repo_root, all_skill_folders, dry_run=False):
     import time
     agents_map = get_agent_paths()
     
@@ -400,11 +417,12 @@ def setup_agent_links(repo_root, active_symlinks, all_skill_folders, dry_run=Fal
     print("=" * 60)
     
     # For agent installation, include all skill folders except 'cooking'
-    agent_skills = {skill for skill in all_skill_folders if skill != "cooking"}
+    agent_skills = {name: path for name, path in all_skill_folders.items() if name != "cooking"}
     
     if not dry_run:
-        print(f"\nPreparing to install {len(agent_skills)} skills to agents")
+        print(f"\nPreparing to copy {len(agent_skills)} skills to agents")
         print(f"  (Excluding 'cooking' folder if present)")
+        print(f"  Skills will be copied as actual directories")
     
     agent_status = {}
     ordered_agents = ["claude code", "gemini", "antigravity", "kilocode", "opencode", "qwencode", "aionui", "kiro"]
@@ -418,7 +436,7 @@ def setup_agent_links(repo_root, active_symlinks, all_skill_folders, dry_run=Fal
         for p in paths:
             if os.path.exists(p) and os.path.isdir(p):
                 total_paths_checked += 1
-                for skill in agent_skills:
+                for skill in agent_skills.keys():
                     skill_path = os.path.join(p, skill)
                     if os.path.exists(skill_path) or os.path.islink(skill_path):
                         if os.path.islink(skill_path):
@@ -495,37 +513,18 @@ def setup_agent_links(repo_root, active_symlinks, all_skill_folders, dry_run=Fal
                 if not dry_run:
                     os.makedirs(p, exist_ok=True)
             
-            # Link each individual skill
-            for skill in agent_skills:
-                skill_dest = os.path.join(p, skill)
-                # For root-level skills, source is directly in repo_root
-                # For nested skills that were symlinked, follow the symlink
-                potential_symlink = os.path.join(repo_root, skill)
-                if os.path.islink(potential_symlink):
-                    # This is a nested skill that was symlinked locally
-                    skill_src = os.path.abspath(os.path.join(repo_root, os.readlink(potential_symlink)))
-                else:
-                    # This is a root-level skill folder
-                    skill_src = os.path.join(repo_root, skill)
+            # Copy each individual skill
+            for skill_name, skill_src in agent_skills.items():
+                skill_dest = os.path.join(p, skill_name)
                 
-                if os.path.exists(skill_dest) or os.path.islink(skill_dest):
-                    is_curr_link = False
-                    if os.path.islink(skill_dest):
-                        try:
-                            target = os.readlink(skill_dest)
-                            target_abs = os.path.abspath(os.path.join(p, target))
-                            # If it points to our repo_root and has the same skill name
-                            if target_abs == os.path.abspath(skill_src) or target_abs.startswith(repo_root):
-                                is_curr_link = True
-                        except OSError:
-                            pass
-                    
-                    if is_curr_link:
-                        # Already linked, nothing to do
+                if os.path.exists(skill_dest):
+                    # Check if it's already a directory (from previous copy)
+                    if os.path.isdir(skill_dest) and not os.path.islink(skill_dest):
+                        # Already exists as a directory, skip or update
                         continue
-                        
+                    
                     # Collision!
-                    print(f"  [!] Collision: Skill '{skill}' already exists in {p}")
+                    print(f"  [!] Collision: Skill '{skill_name}' already exists in {p}")
                     if do_backup and not os.path.islink(skill_dest):
                         backup_base = f"{skill_dest}_{timestamp}.bak"
                         print(f"    [*] Backing up existing skill to {backup_base}.bak...")
@@ -547,7 +546,7 @@ def setup_agent_links(repo_root, active_symlinks, all_skill_folders, dry_run=Fal
                                 print("    [!] Skipping this skill to prevent data loss.")
                                 continue
                                 
-                    print(f"    [-] Removing colliding skill: {skill_dest}")
+                    print(f"    [-] Removing existing skill: {skill_dest}")
                     if not dry_run:
                         try:
                             if os.path.islink(skill_dest):
@@ -557,16 +556,17 @@ def setup_agent_links(repo_root, active_symlinks, all_skill_folders, dry_run=Fal
                             else:
                                 os.remove(skill_dest)
                         except Exception as e:
-                            print(f"    [!] Failed to remove colliding skill: {e}")
+                            print(f"    [!] Failed to remove existing skill: {e}")
                             continue
                 
-                print(f"  [+] Creating symlink: {skill_dest} -> {skill_src}")
+                # Copy the directory
+                print(f"  [+] Copying: {skill_name} <- {os.path.relpath(skill_src, repo_root)}")
                 if not dry_run:
-                    success, link_type = create_link(skill_src, skill_dest, dry_run=dry_run)
-                    if success:
-                        print(f"    [+] Linked via {link_type}!")
-                    else:
-                        print(f"    [!] Failed to link: {link_type}")
+                    try:
+                        shutil.copytree(skill_src, skill_dest, symlinks=False, ignore=shutil.ignore_patterns('.git', '.DS_Store', '__pycache__', '*.pyc'))
+                        print(f"    [✓] Copied successfully!")
+                    except Exception as e:
+                        print(f"    [!] Failed to copy: {e}")
 
 def main():
     # Parse arguments
@@ -647,7 +647,8 @@ def main():
                             if os.path.islink(item_path):
                                 target = os.readlink(item_path)
                                 target_abs = os.path.abspath(os.path.join(p, target))
-                                if target_abs.startswith(repo_root):
+                                # Use case-insensitive comparison for macOS compatibility
+                                if target_abs.lower().startswith(repo_root.lower()):
                                     if dry_run:
                                         print(f"[DRY-RUN] Would remove agent skill symlink: {item_path}")
                                         agent_cleaned_count += 1
@@ -711,11 +712,8 @@ def main():
         
     print(f"Found {len(skills_found)} SKILL.md file(s). Evaluating...")
     
-    active_symlinks = set()
-    all_skill_folders = set()  # Track all skill folders for agent installation
-    links_created = 0
+    all_skill_folders = {}  # Map skill name to source path
     templates_skipped = 0
-    direct_skipped = 0
     
     for skill_dir, skill_file in skills_found:
         rel_skill_dir = os.path.relpath(skill_dir, repo_root)
@@ -726,95 +724,33 @@ def main():
             templates_skipped += 1
             continue
             
-        # Check if folder already has a direct SKILL.md (depth 1, directly at the repo root level)
+        # Determine skill name
         path_parts = rel_skill_dir.split(os.sep)
         if len(path_parts) == 1:
-            print(f"[~] Skipping root-level skill (already direct): {rel_skill_dir}")
-            # Add to all_skill_folders for agent installation
-            all_skill_folders.add(rel_skill_dir)
-            direct_skipped += 1
-            continue
-            
-        symlink_name = get_symlink_name(rel_skill_dir)
-        if not symlink_name:
-            continue
-            
-        link_path = os.path.join(repo_root, symlink_name)
-        active_symlinks.add(symlink_name)
-        all_skill_folders.add(symlink_name)  # Add to all_skill_folders for agent installation
+            # Root-level skill
+            skill_name = rel_skill_dir
+        else:
+            # Nested skill - generate flattened name
+            skill_name = get_symlink_name(rel_skill_dir)
         
-        success, link_type = create_link(skill_dir, link_path, dry_run=dry_run)
-        if success:
-            prefix = "[DRY-RUN] Would create" if dry_run else "[+] Link created"
-            print(f"{prefix} ({link_type}): {symlink_name} -> {rel_skill_dir}")
-            links_created += 1
-        else:
-            print(f"[!] Error creating link for {symlink_name}: {link_type}")
+        if not skill_name:
+            continue
             
-    # Clean up stale symlinks in the root directory
-    print("\nCleaning up obsolete links...")
-    cleaned_count = 0
+        all_skill_folders[skill_name] = skill_dir
+        print(f"[✓] Found skill: {skill_name} ({rel_skill_dir})")
     
-    # We only clean up symlinks that match our naming patterns, or any obsolete symlink we created
-    # To find obsolete symlinks, we look for symlinks in the repo_root that point to files inside the repo
-    # but are not in active_symlinks.
-    for item in os.listdir(repo_root):
-        item_path = os.path.join(repo_root, item)
-        if os.path.islink(item_path):
-            # Resolve target to see if it targets a directory inside our repo
-            try:
-                target = os.readlink(item_path)
-                target_abs = os.path.abspath(os.path.join(repo_root, target))
-                is_internal = target_abs.startswith(repo_root) and target_abs != repo_root
-            except OSError:
-                is_internal = False
-                
-            # If it's a link, pointing internally, and not currently active
-            if is_internal and item not in active_symlinks:
-                if dry_run:
-                    print(f"[DRY-RUN] Would remove obsolete symlink: {item}")
-                    cleaned_count += 1
-                else:
-                    if remove_link(item_path):
-                        print(f"[x] Removed obsolete symlink: {item}")
-                        cleaned_count += 1
-                    else:
-                        print(f"[!] Failed to remove obsolete symlink: {item}")
-                        
-    # Clean up the legacy flat_skills directory if it exists
-    legacy_dir = os.path.join(repo_root, "flat_skills")
-    if os.path.exists(legacy_dir):
-        if dry_run:
-            print("[DRY-RUN] Would remove legacy flat_skills/ directory.")
-        else:
-            try:
-                shutil.rmtree(legacy_dir)
-                print("[+] Removed legacy flat_skills/ directory.")
-            except Exception as e:
-                print(f"[!] Warning: Failed to remove legacy flat_skills/ directory: {e}")
-                
-    # Update .gitignore
-    update_gitignore(repo_root, active_symlinks, dry_run=dry_run)
-                
     print("=" * 60)
-    print("Execution Summary:")
+    print("Scan Summary:")
     print(f"  Total SKILL.md found:  {len(skills_found)}")
     print(f"  Templates skipped:     {templates_skipped}")
-    print(f"  Root-level skipped:    {direct_skipped}")
-    if dry_run:
-        print(f"  Links to create:       {links_created}")
-        print(f"  Obsolete links to remove: {cleaned_count}")
-    else:
-        print(f"  Links active/created:  {links_created}")
-        print(f"  Obsolete links removed: {cleaned_count}")
-        print("All active links are stored directly in the repository root directory.")
+    print(f"  Valid skills:          {len(all_skill_folders)}")
     print(f"\n  Skills available for agent installation: {len(all_skill_folders)}")
     print(f"  (All skills except 'cooking')")
     print("=" * 60)
 
     # Prompt user to link global agent skill directories if running interactively
     if sys.stdin.isatty() and not ("--non-interactive" in sys.argv or "--yes" in sys.argv):
-        setup_agent_links(repo_root, active_symlinks, all_skill_folders, dry_run=dry_run)
+        setup_agent_links(repo_root, all_skill_folders, dry_run=dry_run)
 
 if __name__ == "__main__":
     main()

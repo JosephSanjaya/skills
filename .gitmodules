@@ -7,3 +7,6 @@
 [submodule "anthropics-skills"]
 	path = anthropics-skills
 	url = https://github.com/anthropics/skills.git
+[submodule "kotlin-official-skills"]
+	path = kotlin-official-skills
+	url = https://github.com/Kotlin/kotlin-agent-skills.git

@@ -1,10 +1,9 @@
 ---
 name: ci-cd-expert
 description: |
-  Enterprise CI/CD pipeline architecture, optimization, security, and delivery expert.
-  Covers GitHub Actions, GitLab CI/CD, Jenkins, Turborepo, Nx, Bazel, Docker BuildKit, Kaniko, ArgoCD, Spinnaker, Kayenta, Fastlane, Flyway, Liquibase, and OIDC.
-  Use when: building pipelines, optimizing build times/caching, configuring GitOps/canary/progressive delivery, setting up monorepos (Turborepo/Nx/Bazel), implementing OIDC/secure runners, zero-downtime DB migrations, mobile DevOps, or debugging pipeline issues.
-  Triggers: CI/CD, pipeline, workflow, deployment, GitHub Actions, GitLab CI, Jenkins, ArgoCD, GitOps, Kaniko, Docker build, canary, Spinnaker, Kayenta, Fastlane, OIDC, monorepo CI, Bazel, cache strategy, DAG pipeline, reusable workflow, composite action, sync waves, zero-downtime migration, PPE, code signing.
+  Enterprise CI/CD, optimization, security, & delivery expert. Covers GHA, GitLab CI, Jenkins, monorepos (Turbo, Nx, Bazel), containers (BuildKit, Kaniko), GitOps (Argo), delivery (Spinnaker, Kayenta, Fastlane, Flyway), OIDC, and Android.
+  Use for: pipelines, caching, GitOps, monorepos, OIDC, DB migrations, mobile DevOps, or debugging.
+  Triggers: CI/CD, pipeline, workflow, deployment, GitHub Actions, GitLab CI, Jenkins, ArgoCD, GitOps, Kaniko, Docker build, canary, Spinnaker, Kayenta, Fastlane, OIDC, monorepo CI, Bazel, cache strategy, DAG pipeline, reusable workflow, composite action, sync waves, zero-downtime migration, PPE, code signing, android CI, gradle cache CI, optimize android build, affected modules, keystore signing, pre-push hook android, android emulator CI, KVM CI, swap runner memory, roborazzi CI, nektos/act android, cancel in progress workflow.
 ---
 
 # CI/CD Expert
@@ -25,6 +24,11 @@ What need?
 ├── DB migrations in pipeline → references/db-migrations.md
 ├── Canary / progressive delivery → references/progressive-delivery.md
 ├── Mobile CI/CD (iOS/Android) → references/mobile-devops.md
+├── Android affected modules & testing → references/android-affected-testing.md
+├── Android signing & release → references/android-signing-release.md
+├── Android Gradle tuning & caching → references/android-gradle-tuning.md
+├── Android pre-merge & emulator → references/android-emulator-validation.md
+├── Android runner memory & swap → references/android-runners-memory.md
 ├── Pipeline security (OIDC/PPE) → references/security-oidc.md
 └── Full config samples → references/samples.md
 ```
@@ -33,7 +37,7 @@ What need?
 
 1. **DAG > Sequential.** Never chain jobs linearly. Use `needs` (GitLab) or job dependencies (GHA) for parallel fan-out/fan-in.
 2. **Cache everything.** Hash lock files for cache keys. Use fallback keys. Distribute cache via S3/NFS at scale.
-3. **Impact radius only.** Never rebuild world. Use affected/changed detection (Nx, Turborepo, Bazel, `git diff`).
+3. **Impact radius only.** Never rebuild world. Use affected/changed detection (Nx, Turborepo, Bazel, dropbox/affectedmoduledetector, `git diff`).
 4. **Immutable tags.** Use Git SHA tags (`v1.2.3-a3f5b2c`), never `latest`. Pin 3rd-party actions to commit SHAs.
 5. **Zero static secrets.** OIDC federation for cloud access. Short-lived JWT tokens. No long-lived IAM keys.
 6. **GitOps pull > CI push.** ArgoCD/Flux pull from Git. Never `kubectl apply` from CI runner.
@@ -58,7 +62,7 @@ What need?
 | **Jobs** | Multiple jobs, own `runs-on` | No jobs, runs on caller's runner |
 | **Secrets** | Native `secrets:` passing | Must pass via env vars |
 | **Logging** | Per-step visibility | Single collapsed step |
-| **Use for** | Pipeline templates, compliance gates | Shared setup tasks, Docker builds |
+| **Matrix** | Own `strategy.matrix` | None (caller controls) |
 
 **Rule:** Workflows = pipeline templates. Actions = task templates. Never mix.
 
@@ -129,8 +133,8 @@ CI Pipeline                          K8s Cluster
 ┌──────────┐    commit SHA tag    ┌────────────┐
 │ Build +  │ ──→ Update manifest  │  ArgoCD /  │
 │ Test     │     in infra repo    │  Flux      │
-└──────────┘    (Kustomize edit)  │  (pull)    │
-                                  └────────────┘
+│ └──────────┘    (Kustomize edit)  │  (pull)    │
+│                                   └────────────┘
 ```
 
 ArgoCD Sync Wave order: Wave -5 (secrets/PVCs) → Wave 0 (DB) → Wave 1 (backend) → Wave 2 (frontend).
@@ -172,6 +176,11 @@ Lock sub claim to exact repo + branch: `repo:org/repo:ref:refs/heads/main`.
 | [db-migrations.md](references/db-migrations.md) | Expand-Contract, Flyway/Liquibase, PreSync hooks |
 | [progressive-delivery.md](references/progressive-delivery.md) | Canary, Spinnaker, Kayenta config, statistical analysis |
 | [mobile-devops.md](references/mobile-devops.md) | Fastlane Match, Fastfile, iOS/Android signing |
+| [android-affected-testing.md](references/android-affected-testing.md) | Android affected module detection, test-only modules, Roborazzi |
+| [android-signing-release.md](references/android-signing-release.md) | Android GHA keystore signing, GPG/base64, Play Store upload |
+| [android-gradle-tuning.md](references/android-gradle-tuning.md) | Android compiler tuning (KSP), configuration/remote cache |
+| [android-emulator-validation.md](references/android-emulator-validation.md) | Android git hooks auto-install, act dry-run, KVM emulator permissions |
+| [android-runners-memory.md](references/android-runners-memory.md) | Android runner comparison, swap space expansion (17GB RAM) |
 | [security-oidc.md](references/security-oidc.md) | OIDC federation, PPE prevention, trust policies |
 | [samples.md](references/samples.md) | Full working config samples for all platforms |
 | [hyperscale.md](references/hyperscale.md) | Stripe STE, Uber/Airbnb Bazel, Netflix Spinnaker |
@@ -184,4 +193,8 @@ Lock sub claim to exact repo + branch: `repo:org/repo:ref:refs/heads/main`.
 - Build containers using multi-stage Dockerfiles. Use Kaniko in shared/restricted Kubernetes, BuildKit in isolated runners.
 - DB migrations must run in PreSync hook / wave -5 using additive-only SQL first (Expand-and-Contract).
 - Enable `interruptible: true` in GitLab and `cancel-in-progress` in GHA to kill redundant runs.
+- Run swap space expansion early on standard free GitHub Actions runners to reclaim space and enable safe `-Xmx6g` Gradle heap.
+- Always configure Gradle cache encryption via `cache-encryption-key` and restrict cache write access (`cache-read-only`) to production/release branches.
+- Run UI/screenshot checks (e.g. Roborazzi) and instrumentation tests on a nightly schedule or triggered on UI directory changes to avoid slowing down developer PR loops.
+- Auto-install local Git hooks (e.g. pre-push) by registering an `installLocalGitHooks` copy task in the root Gradle build configuration.
 </constraints>

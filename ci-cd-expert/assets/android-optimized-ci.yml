@@ -1,0 +1,99 @@
+name: Optimized Android CI Pipeline
+
+on:
+  push:
+    branches: [ main, release/* ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  validate_and_test:
+    name: Build, Lint, and Unit Test Execution
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+
+    steps:
+      - name: Checkout Sources
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Optimize Runner Memory and Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/share/swift
+          sudo swapoff -a
+          sudo rm -f /mnt/swapfile
+          sudo dd if=/dev/zero of=/mnt/swapfile bs=1M count=10240
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Configure KVM Group Permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Local act Android SDK Provisioning
+        if: ${{ env.ACT }}
+        uses: android-actions/setup-android@v4
+        with:
+          api-level: 34
+
+      - name: Setup Gradle Environment
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+          gradle-home-cache-cleanup: true
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_ENCRYPTION_KEY }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/release' }}
+
+      - name: Decode Keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+        if: ${{ !env.ACT && github.event_name == 'push' }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > app/release.keystore
+
+      - name: Configure Keystore Properties
+        if: ${{ !env.ACT && github.event_name == 'push' }}
+        run: |
+          echo "storeFile=release.keystore" >> keystore.properties
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+
+      - name: Run Quality Gate and Affected Tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew spotlessCheck runAffectedUnitTests -Paffected_module_detector.enable -Proborazzi.test.verify=false --daemon
+
+      - name: Compile Target Build Variant
+        run: ./gradlew :app:assembleDebug --daemon
+
+      - name: Upload Build Outputs (APKs)
+        uses: actions/upload-artifact@v7
+        with:
+          name: Debug-APKs
+          path: '**/build/outputs/apk/debug/**/*.apk'
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Unit-Test-Reports
+          path: '**/build/test-results/**/*.xml'

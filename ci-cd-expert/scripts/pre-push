@@ -1,0 +1,25 @@
+#!/bin/bash
+echo "=== Running local pre-push verification ==="
+
+# Stash unstaged files to ensure validation runs strictly on committed code
+STASH_COMMITTED="$(git stash create)"
+if [ -n "$STASH_COMMITTED" ]; then
+    git reset --hard
+fi
+
+# Run fast static analysis and unit tests
+./gradlew spotlessCheck testDemoDebugUnitTest --daemon
+STATUS=$?
+
+# Restore unstaged changes back to the working directory
+if [ -n "$STASH_COMMITTED" ]; then
+    git stash apply "$STASH_COMMITTED"
+fi
+
+if [ $STATUS -ne 0 ]; then
+    echo "Local validation failed. Push aborted."
+    exit 1
+fi
+
+echo "Local validation succeeded. Proceeding with push."
+exit 0

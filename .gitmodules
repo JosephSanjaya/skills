@@ -1,3 +1,6 @@
 [submodule "android-official-skills"]
 	path = android-official-skills
 	url = https://github.com/android/skills.git
+[submodule "compose-performance-skills"]
+	path = compose-performance-skills
+	url = https://github.com/skydoves/compose-performance-skills.git

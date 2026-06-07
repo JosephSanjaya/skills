@@ -22,16 +22,29 @@ from pathlib import Path
 
 class PromptAuditor:
     def __init__(self, content: str, filename: str = "Prompt"):
-        self.content = content
+        self.raw_content = content
         self.filename = filename
-        self.lines = content.splitlines()
-        self.total_words = len(content.split())
-        self.total_chars = len(content)
+        
+        # Extract frontmatter if SKILL.md
+        self.frontmatter = ""
+        self.content = content
+        self.has_frontmatter = False
+        if filename == "SKILL.md" and content.startswith("---"):
+            parts = content.split("---", 2)  # Use maxsplit=2 to only split on first 2 occurrences
+            if len(parts) >= 3:
+                self.has_frontmatter = True
+                self.frontmatter = "---\n" + parts[1] + "---\n\n"
+                self.content = parts[2].strip()
+
+        self.lines = self.content.splitlines()
+        self.total_words = len(self.content.split())
+        self.total_chars = len(self.content)
         # Approximate tokens (simple heuristic: 1 token ~ 4 chars or 0.75 words)
         self.est_tokens = int(max(self.total_chars / 4.0, self.total_words / 0.75))
 
     def audit(self) -> dict:
         results = {
+            "frontmatter": self._check_frontmatter(),
             "politeness": self._check_politeness(),
             "persona": self._check_persona(),
             "caching": self._check_caching(),
@@ -76,6 +89,116 @@ class PromptAuditor:
             details = "No polite fillers or conversational overhead detected."
 
         return {"passed": passed, "details": details, "score": 100 if passed else 50}
+
+    def _parse_yaml_fallback(self, text: str) -> dict:
+        result = {}
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if ':' not in line:
+                raise ValueError(f"Line '{line}' is not a valid key-value pair (missing colon).")
+            key, val = line.split(':', 1)
+            key = key.strip()
+            val = val.strip()
+            if not key:
+                raise ValueError(f"Empty key on line: '{line}'")
+            
+            # Simple quote stripping
+            if val.startswith('"') and val.endswith('"'):
+                val = val[1:-1]
+            elif val.startswith("'") and val.endswith("'"):
+                val = val[1:-1]
+            elif ':' in val:
+                raise ValueError(f"Unquoted colon detected in value: '{val}'. Wrap the value in quotes.")
+                
+            result[key] = val
+        return result
+
+    def _check_frontmatter(self) -> dict:
+        if self.filename != "SKILL.md":
+            return {"passed": True, "details": "Not a SKILL.md file, skipping frontmatter check.", "score": 100}
+
+        # Check if file has frontmatter markers
+        if not self.raw_content.startswith("---"):
+            return {"passed": False, "details": "SKILL.md must start with '---' frontmatter marker.", "score": 0}
+
+        parts = self.raw_content.split("---", 2)  # Use maxsplit=2
+        if len(parts) < 3:
+            return {"passed": False, "details": "SKILL.md must have a closing '---' frontmatter marker.", "score": 0}
+
+        frontmatter_str = parts[1].strip()
+        
+        # Pre-validation: Check for common YAML formatting issues before parsing
+        lines = frontmatter_str.splitlines()
+        for i, line in enumerate(lines, 1):
+            line_stripped = line.strip()
+            if not line_stripped or line_stripped.startswith('#'):
+                continue
+            if ':' in line_stripped:
+                key, _, value = line_stripped.partition(':')
+                value = value.strip()
+                # Check if value contains colon but is not quoted
+                if ':' in value:
+                    # Value contains colon - must be quoted with double quotes
+                    if not (value.startswith('"') and value.endswith('"')):
+                        return {
+                            "passed": False,
+                            "details": f"Line {i}: Value contains colon but is not properly quoted. Wrap the entire value in double quotes. Line content: '{line_stripped}'",
+                            "score": 0
+                        }
+                # Check for single quotes containing colons (should use double quotes instead)
+                if value.startswith("'") and value.endswith("'") and ':' in value:
+                    return {
+                        "passed": False,
+                        "details": f"Line {i}: Value with colons should use double quotes (\") not single quotes ('). Line content: '{line_stripped}'",
+                        "score": 0
+                    }
+        
+        # Try to parse frontmatter
+        parsed = None
+        yaml_error = None
+        try:
+            import yaml
+            parsed = yaml.safe_load(frontmatter_str)
+        except ImportError:
+            try:
+                parsed = self._parse_yaml_fallback(frontmatter_str)
+            except Exception as e:
+                yaml_error = str(e)
+        except Exception as e:
+            yaml_error = str(e)
+
+        if yaml_error:
+            return {
+                "passed": False,
+                "details": f"Failed to parse YAML frontmatter: {yaml_error}. Check quotes and syntax (colons must be followed by a space, and text containing colons must be quoted with double quotes).",
+                "score": 0
+            }
+
+        if not isinstance(parsed, dict):
+            return {"passed": False, "details": "YAML frontmatter must be a dictionary/mapping.", "score": 0}
+
+        required_keys = ["name", "description"]
+        missing = [k for k in required_keys if k not in parsed]
+        if missing:
+            return {"passed": False, "details": f"Missing required keys in frontmatter: {missing}.", "score": 0}
+
+        # Validate name
+        name_val = parsed.get("name")
+        if not name_val or not isinstance(name_val, str):
+            return {"passed": False, "details": "The 'name' field must be a non-empty string.", "score": 0}
+        
+        if not re.match(r"^[a-z0-9_-]+$", name_val):
+            return {"passed": False, "details": f"The 'name' field '{name_val}' must be lowercase kebab-case (alphanumeric, hyphens, underscores).", "score": 50}
+
+        # Validate description
+        desc_val = parsed.get("description")
+        if not desc_val or not isinstance(desc_val, str):
+            return {"passed": False, "details": "The 'description' field must be a non-empty string.", "score": 0}
+
+        return {"passed": True, "details": "YAML frontmatter is valid and contains all required fields.", "score": 100}
+
 
     def _check_persona(self) -> dict:
         patterns = [
@@ -233,6 +356,7 @@ class PromptAuditor:
         report.append(f"Estimated Tokens: **{data['metrics']['est_tokens']}** | Words: {data['metrics']['words']} | Characters: {data['metrics']['chars']}\n")
         
         scores = [
+            data["frontmatter"]["score"],
             data["politeness"]["score"],
             data["persona"]["score"],
             data["caching"]["score"],
@@ -249,6 +373,7 @@ class PromptAuditor:
         report.append("## Detailed Audits\n")
         
         categories = [
+            ("SKILL.md Frontmatter Validation", "frontmatter"),
             ("Politeness Waste (Redundant Tokens)", "politeness"),
             ("Persona Placebo (Role-Prompting)", "persona"),
             ("Prefix Cache Friendliness", "caching"),
@@ -263,12 +388,16 @@ class PromptAuditor:
         for name, key in categories:
             cat_data = data[key]
             status = "✅ PASS" if cat_data["passed"] else "❌ WARN"
+            if key == "frontmatter" and not cat_data["passed"]:
+                status = "🚨 FAIL"
             report.append(f"### {status} | {name}")
             report.append(f"- **Details**: {cat_data['details']}")
             report.append(f"- **Metric Score**: {cat_data['score']}/100\n")
-
+ 
         report.append("## Recommendation Action Plan")
         actions = []
+        if not data["frontmatter"]["passed"]:
+            actions.append(f"- [CRITICAL] {data['frontmatter']['details']}")
         if not data["politeness"]["passed"]:
             actions.append("- Ruthlessly strip conversational pleasantries (e.g. 'please', 'thank you', 'could you').")
         if not data["persona"]["passed"]:
@@ -386,22 +515,16 @@ def main():
             parser.print_help()
             sys.exit(1)
 
-    # If auditing a skill, strip out frontmatter to analyze the core instructions
-    skill_frontmatter = ""
-    if filename == "SKILL.md":
-        parts = content.split("---")
-        if len(parts) >= 3:
-            skill_frontmatter = "---" + parts[1] + "---\n\n"
-            content = "---".join(parts[2:])
-
+    # Pass the full content to the auditor (it will handle frontmatter internally)
     auditor = PromptAuditor(content, filename=filename)
     
     if args.fix:
         refactored_content = auditor.refactor()
         output_path = Path(args.fix)
         try:
-            if filename == "SKILL.md":
-                output_path.write_text(skill_frontmatter + refactored_content, encoding="utf-8")
+            # If it's a SKILL.md, prepend the frontmatter
+            if auditor.has_frontmatter:
+                output_path.write_text(auditor.frontmatter + refactored_content, encoding="utf-8")
             else:
                 output_path.write_text(refactored_content, encoding="utf-8")
             print(f"[OK] Refactored prompt successfully written to: {output_path}")

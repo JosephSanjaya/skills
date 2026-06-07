@@ -1,6 +1,6 @@
 ---
 name: optimize-prompt
-description: "Optimize Claude Code and LLM prompts for token efficiency, prefix caching compliance, positional recall, and execution correctness. Use when writing/reviewing prompts, debugging agent errors/failures, managing context windows, selecting effort levels, choosing MCP vs CLI tools, designing subagents, or editing CLAUDE.md. Triggers: 'optimize my prompt', 'prompt is too expensive', 'agent keeps reading wrong files', 'how should I structure this prompt', 'context window filling up', 'how to use Plan Mode', 'when to use subagents', 'MCP vs CLI', 'effort level', 'prompt structure', 'high-signal prompt', '/clear vs /compact', 'CLAUDE.md best practices', 'audit prompt', 'review prompt', 'optimize skill', 'check caching', 'prompt design check', 'token usage', 'reduce tokens', 'optimize context', 'API costs', 'context window', 'prompt compression', 'token efficiency', 'cache strategy', 'LTL', 'symbolic language', 'caveman mode', 'hybrid caching', 'AtomicRAG', 'Claw Compactor'."
+description: "Optimize Claude Code and LLM prompts for token efficiency, prefix caching compliance, positional recall, and execution correctness. Use when writing/reviewing prompts, debugging agent errors/failures, managing context windows, selecting effort levels, choosing MCP vs CLI tools, designing subagents, or editing CLAUDE.md. Triggers - optimize my prompt, prompt is too expensive, agent keeps reading wrong files, how should I structure this prompt, context window filling up, how to use Plan Mode, when to use subagents, MCP vs CLI, effort level, prompt structure, high-signal prompt, /clear vs /compact, CLAUDE.md best practices, audit prompt, review prompt, optimize skill, check caching, prompt design check, token usage, reduce tokens, optimize context, API costs, context window, prompt compression, token efficiency, cache strategy, LTL, symbolic language, caveman mode, hybrid caching, AtomicRAG, Claw Compactor."
 ---
 
 # Optimize Prompt & Review Skill
@@ -38,6 +38,12 @@ To analyze and optimize a prompt:
     ```bash
     python scripts/audit_prompt.py <path/to/prompt.txt>
     ```
+    For SKILL.md files, the auditor validates:
+    - Frontmatter presence and structure (required `---` markers)
+    - Required fields: `name` and `description`
+    - Proper YAML syntax (unquoted colons in values will trigger a failure)
+    - Name format (lowercase kebab-case)
+    
 2.  **Analyze Token/Session Cost**:
     Analyze token distribution of files or conversation history files (.json):
     ```bash

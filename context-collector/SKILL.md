@@ -1,6 +1,6 @@
 ---
 name: context-collector
-description: Deep architecture recovery, context gathering, and root cause analysis for unfamiliar or undocumented codebases. Use when asked to analyze a codebase, understand its architecture, map dependencies, gather context before a task, do architecture recovery, explore an unknown repo, or investigate a production bug/regression. Triggers on: "analyze this codebase", "understand architecture", "gather context", "map dependencies", "architecture recovery", "unfamiliar codebase", "context gathering", "explore codebase", "what is the architecture", "I inherited this code", "understand this repo", "why did X break", "root cause", "production bug", "incident investigation", "postmortem", "regression", "debug this".
+description: "Deep architecture recovery, context gathering, and root cause analysis for unfamiliar or undocumented codebases. Use when asked to analyze a codebase, understand its architecture, map dependencies, gather context before a task, do architecture recovery, explore an unknown repo, or investigate a production bug/regression. Triggers on - analyze this codebase, understand architecture, gather context, map dependencies, architecture recovery, unfamiliar codebase, context gathering, explore codebase, what is the architecture, I inherited this code, understand this repo, why did X break, root cause, production bug, incident investigation, postmortem, regression, debug this."
 ---
 
 # Context Collector

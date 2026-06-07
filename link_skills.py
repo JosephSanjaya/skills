@@ -405,7 +405,7 @@ def fallback_agent_selection(agents, agent_status):
         
     return [agents[idx] for idx in selected_indices]
 
-def setup_agent_links(repo_root, all_skill_folders, dry_run=False):
+def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_all=False):
     import time
     agents_map = get_agent_paths()
     
@@ -469,8 +469,12 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False):
             
         agent_status[agent] = (status, paths)
         
-    # Interactive checkbox selection
-    selected_agents = interactive_agent_selection(ordered_agents, agent_status)
+    # Agent selection (automatic or interactive)
+    if auto_select_all:
+        selected_agents = [agent for agent in ordered_agents if agent_status[agent][0] != "Not Created"]
+        print(f"Auto-selected active agents: {', '.join(selected_agents)}")
+    else:
+        selected_agents = interactive_agent_selection(ordered_agents, agent_status)
     
     if not selected_agents:
         print("No agents selected. Skipping agent links setup.")
@@ -486,13 +490,16 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False):
     print("If any of these skills already exist in the agent's folder, they will be replaced.")
     print("!" * 60)
     
-    try:
-        backup_input = input("\nDo you want to backup any colliding skill folders into .bak files first? (y/n) [y]: ").strip().lower()
-    except (KeyboardInterrupt, EOFError):
-        print("\nOperation cancelled.")
-        return
+    if auto_select_all:
+        do_backup = True
+    else:
+        try:
+            backup_input = input("\nDo you want to backup any colliding skill folders into .bak files first? (y/n) [y]: ").strip().lower()
+            do_backup = backup_input != 'n'
+        except (KeyboardInterrupt, EOFError):
+            print("\nOperation cancelled.")
+            return
         
-    do_backup = backup_input != 'n'
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     
     for agent in selected_agents:
@@ -751,6 +758,8 @@ def main():
     # Prompt user to link global agent skill directories if running interactively
     if sys.stdin.isatty() and not ("--non-interactive" in sys.argv or "--yes" in sys.argv):
         setup_agent_links(repo_root, all_skill_folders, dry_run=dry_run)
+    elif "--yes" in sys.argv or "--non-interactive" in sys.argv:
+        setup_agent_links(repo_root, all_skill_folders, dry_run=dry_run, auto_select_all=True)
 
 if __name__ == "__main__":
     main()

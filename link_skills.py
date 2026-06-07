@@ -240,6 +240,110 @@ def update_gitignore(repo_root, active_symlinks, dry_run=False):
         except Exception as e:
             print(f"Error: Failed to write to .gitignore: {e}")
 
+def get_concatenated_rules(repo_root):
+    """Reads, strips YAML frontmatter, and concatenates the two rule files."""
+    rules_dir = os.path.join(repo_root, "rules")
+    files = ["code-structure-patterns.md", "readable-code-principles.md"]
+    content_parts = []
+    
+    for filename in files:
+        file_path = os.path.join(rules_dir, filename)
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+                # Strip YAML frontmatter if present
+                if file_content.startswith('---'):
+                    parts = file_content.split('---', 2)
+                    if len(parts) >= 3:
+                        file_content = parts[2].strip()
+                content_parts.append(file_content.strip())
+            except Exception as e:
+                print(f"Warning: Failed to read rule file {filename}: {e}")
+                
+    return "\n\n".join(content_parts)
+
+def merge_rules_into_file(file_path, rules_content, dry_run=False):
+    """Merges rules_content into file_path wrapped in generated rule markers."""
+    start_marker = "<!-- BEGIN GENERATED CODING RULES -->"
+    end_marker = "<!-- END GENERATED CODING RULES -->"
+    
+    # Format the block to inject
+    rules_block = f"{start_marker}\n{rules_content}\n{end_marker}"
+    
+    content = ""
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception as e:
+            print(f"Warning: Failed to read {file_path} for merging rules: {e}")
+            return False
+            
+    pattern = re.compile(rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}\n?", re.DOTALL)
+    
+    if pattern.search(content):
+        new_content = pattern.sub(rules_block + "\n", content)
+    else:
+        # Append to the end of the file
+        if content and not content.endswith("\n"):
+            content += "\n"
+        new_content = content + rules_block + "\n"
+        
+    if dry_run:
+        print(f"[DRY-RUN] Would merge rules into file: {file_path}")
+        return True
+    else:
+        try:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+            print(f"  [✓] Merged rules into: {file_path}")
+            return True
+        except Exception as e:
+            print(f"  [!] Failed to merge rules into {file_path}: {e}")
+            return False
+
+def remove_rules_from_file(file_path, dry_run=False):
+    """Removes the generated rules block from file_path."""
+    if not os.path.exists(file_path):
+        return True
+        
+    start_marker = "<!-- BEGIN GENERATED CODING RULES -->"
+    end_marker = "<!-- END GENERATED CODING RULES -->"
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception as e:
+        print(f"Warning: Failed to read {file_path} for removing rules: {e}")
+        return False
+        
+    pattern = re.compile(rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}\n?", re.DOTALL)
+    
+    if not pattern.search(content):
+        return True
+        
+    new_content = pattern.sub("", content)
+    
+    if dry_run:
+        print(f"[DRY-RUN] Would remove rules block from: {file_path}")
+        return True
+    else:
+        try:
+            # If the file becomes completely empty or only whitespace, we can remove it
+            if not new_content.strip():
+                os.remove(file_path)
+                print(f"  [-] Removed empty config file: {file_path}")
+            else:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                print(f"  [-] Removed rules block from: {file_path}")
+            return True
+        except Exception as e:
+            print(f"  [!] Failed to remove rules block from {file_path}: {e}")
+            return False
+
 def get_agent_paths():
     home = os.path.expanduser("~")
     system = platform.system()
@@ -585,6 +689,42 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
                         print(f"    [✓] Copied successfully!")
                     except Exception as e:
                         print(f"    [!] Failed to copy: {e}")
+            
+            # Now install custom rules for this agent path
+            home = os.path.expanduser("~")
+            agent_single_files = {
+                "claude code": [os.path.join(home, ".claude", "CLAUDE.md")],
+                "gemini": [os.path.join(home, ".gemini", "GEMINI.md")],
+                "antigravity": [os.path.join(home, ".gemini", "GEMINI.md")],
+                "opencode": [os.path.join(home, ".config", "opencode", "AGENTS.md")],
+                "kiro": [os.path.join(home, ".kiro", ".config.kiro")]
+            }
+            
+            rules_src_dir = os.path.join(repo_root, "rules")
+            rules_dest_dir = os.path.join(os.path.dirname(p), "rules")
+            
+            print(f"  [+] Creating agent rules folder: {rules_dest_dir}")
+            if not dry_run:
+                os.makedirs(rules_dest_dir, exist_ok=True)
+                
+            rule_files = ["code-structure-patterns.md", "readable-code-principles.md"]
+            for rf in rule_files:
+                rf_src = os.path.join(rules_src_dir, rf)
+                rf_dest = os.path.join(rules_dest_dir, rf)
+                if os.path.exists(rf_src):
+                    print(f"  [+] Copying rule: {rf} -> {rf_dest}")
+                    if not dry_run:
+                        try:
+                            shutil.copy2(rf_src, rf_dest)
+                            print(f"    [✓] Copied rule successfully!")
+                        except Exception as e:
+                            print(f"    [!] Failed to copy rule: {e}")
+            
+            # Merge rules into single-file config paths if configured for this agent
+            if agent in agent_single_files:
+                rules_content = get_concatenated_rules(repo_root)
+                for sf_path in agent_single_files[agent]:
+                    merge_rules_into_file(sf_path, rules_content, dry_run=dry_run)
 
 def main():
     # Parse arguments
@@ -679,6 +819,55 @@ def main():
                     except Exception as e:
                         print(f"[!] Error scanning {p} for cleanup: {e}")
                         
+        # Clean up agent rules if any
+        home = os.path.expanduser("~")
+        agent_single_files = {
+            "claude code": [os.path.join(home, ".claude", "CLAUDE.md")],
+            "gemini": [os.path.join(home, ".gemini", "GEMINI.md")],
+            "antigravity": [os.path.join(home, ".gemini", "GEMINI.md")],
+            "opencode": [os.path.join(home, ".config", "opencode", "AGENTS.md")],
+            "kiro": [os.path.join(home, ".kiro", ".config.kiro")]
+        }
+        
+        rules_cleaned_count = 0
+        for agent, paths in agents_map.items():
+            for p in paths:
+                # 1. Clean up rules inside derived rules_dir
+                rules_dir = os.path.join(os.path.dirname(p), "rules")
+                if os.path.exists(rules_dir) and os.path.isdir(rules_dir):
+                    rule_files = ["code-structure-patterns.md", "readable-code-principles.md"]
+                    for rf in rule_files:
+                        rf_path = os.path.join(rules_dir, rf)
+                        if os.path.exists(rf_path):
+                            if dry_run:
+                                print(f"[DRY-RUN] Would remove agent rule file: {rf_path}")
+                                rules_cleaned_count += 1
+                            else:
+                                try:
+                                    os.remove(rf_path)
+                                    print(f"[x] Removed agent rule file: {rf_path}")
+                                    rules_cleaned_count += 1
+                                except Exception as e:
+                                    print(f"[!] Failed to remove agent rule file {rf_path}: {e}")
+                    # If rules_dir is now empty, remove it too
+                    if not dry_run and os.path.exists(rules_dir) and not os.listdir(rules_dir):
+                        try:
+                            os.rmdir(rules_dir)
+                            print(f"[-] Removed empty rules folder: {rules_dir}")
+                        except Exception as e:
+                            pass
+                            
+            # 2. Clean up rules in single-file configs
+            if agent in agent_single_files:
+                for sf_path in agent_single_files[agent]:
+                    if os.path.exists(sf_path):
+                        if dry_run:
+                            print(f"[DRY-RUN] Would clean rules block from: {sf_path}")
+                            rules_cleaned_count += 1
+                        else:
+                            if remove_rules_from_file(sf_path, dry_run=False):
+                                rules_cleaned_count += 1
+                                
         update_gitignore(repo_root, set(), dry_run=dry_run)
         
         print("=" * 60)
@@ -686,9 +875,11 @@ def main():
         if dry_run:
             print(f"  Local links to remove: {cleaned_count}")
             print(f"  Agent links to remove: {agent_cleaned_count}")
+            print(f"  Agent rules to remove: {rules_cleaned_count}")
         else:
             print(f"  Local links removed:   {cleaned_count}")
             print(f"  Agent links removed:   {agent_cleaned_count}")
+            print(f"  Agent rules cleaned:   {rules_cleaned_count}")
         print("=" * 60)
         sys.exit(0)
         

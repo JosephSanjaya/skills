@@ -289,6 +289,7 @@ def interactive_agent_selection(agents, agent_status):
     
     def get_char():
         """Read a single character from stdin."""
+        import select
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
@@ -296,7 +297,12 @@ def interactive_agent_selection(agents, agent_status):
             char = sys.stdin.read(1)
             # Handle escape sequences (arrow keys)
             if char == '\x1b':
-                char += sys.stdin.read(2)
+                # Use select to check if more characters are available immediately (e.g. within 50ms)
+                # This distinguishes between arrow keys (which send \x1b[A immediately)
+                # and pressing just the ESC key (which sends only \x1b).
+                rlist, _, _ = select.select([sys.stdin], [], [], 0.05)
+                if rlist:
+                    char += sys.stdin.read(2)
             return char
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)

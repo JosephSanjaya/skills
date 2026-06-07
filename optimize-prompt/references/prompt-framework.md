@@ -30,6 +30,8 @@ Next: [first step only]
 **Rule:** Paste raw CI output / stack trace directly. Don't narrate it.  
 Raw trace → agent traces root cause directly. Narrative → agent spends tokens re-interpreting.
 
+---
+
 ## XML Tag Semantic Isolation
 
 Claude trained to treat XML tags as semantic separators. Prevents context bleed.
@@ -53,6 +55,8 @@ Claude trained to treat XML tags as semantic separators. Prevents context bleed.
 **Nesting tags > flat lists** for predictability.  
 `<thinking>` before code → 30-40% accuracy improvement on complex changes.
 
+---
+
 ## Effort Level Selection
 
 | Level | Use When | Avoid When |
@@ -64,6 +68,8 @@ Claude trained to treat XML tags as semantic separators. Prevents context bleed.
 
 **Iterative escalation rule:** Start Low → step up only if result unsatisfactory.  
 **Critical:** High/Max effort can't compensate for missing context. Fix context first, then escalate.
+
+---
 
 ## Context-Bounding Operators
 
@@ -80,6 +86,47 @@ Examples:
 !git log --oneline -5
 !npm test -- --testPathPattern=auth 2>&1 | tail -20
 ```
+
+---
+
+## Structural Optimization Mechanisms
+
+### Global State Management with CLAUDE.md
+Eliminate repetition of project-specific rules (naming conventions, architecture patterns, stack constraints) by using a hierarchical lookup:
+1. **Global**: `~/.claude/CLAUDE.md` - Cross-project settings
+2. **Project**: `<project-root>/CLAUDE.md` - Project-specific rules
+3. **Subdirectory**: `<subdirectory>/CLAUDE.md` - Module-specific rules (for monorepos)
+Saves 2,000+ tokens per session by avoiding repeated instructions.
+
+### Model Context Protocol (MCP) Dynamic Loading
+Instead of pushing entire documentation sets or database schemas into prompts, configure MCP servers to dynamically query specific packages or databases only when needed.
+Example MCP Configuration (`mcp_config.json`):
+```json
+{
+  "mcpServers": {
+    "docs": {
+      "command": "uvx",
+      "args": ["mcp-server-docs@latest"]
+    }
+  }
+}
+```
+
+### Deterministic Aliasing with /commands
+Replace verbose natural language instructions with structured command definitions.
+Example Command Definition:
+```yaml
+/test-and-fix:
+  description: Run Vitest, identify errors, apply fixes
+  steps:
+    - Run: npm run test
+    - Parse: Extract failing tests
+    - Fix: Apply corrections
+    - Verify: Re-run tests
+```
+Saves ~300 tokens of intent per request by replacing it with a ~10-token command alias.
+
+---
 
 ## Anti-Patterns
 

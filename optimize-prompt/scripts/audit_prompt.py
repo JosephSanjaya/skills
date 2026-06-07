@@ -10,6 +10,8 @@ Performs static analysis to detect:
 5. XML-style formatting hierarchy
 6. Wall-of-text patterns
 7. Claude Code specific issues (vague targets, full implementation requests, missing bounding operators)
+8. Inefficient data formats (raw JSON/XML where Markdown/YAML is denser)
+9. Overly long prompts requiring compression
 """
 
 import argparse
@@ -37,6 +39,8 @@ class PromptAuditor:
             "xml": self._check_xml(),
             "wall_of_text": self._check_wall_of_text(),
             "claude_code": self._check_claude_code(),
+            "data_formats": self._check_data_formats(),
+            "token_compression": self._check_token_compression(),
             "metrics": {
                 "words": self.total_words,
                 "chars": self.total_chars,
@@ -188,6 +192,39 @@ class PromptAuditor:
 
         return {"passed": passed, "details": details, "score": max(0, 100 - score_penalty)}
 
+    def _check_data_formats(self) -> dict:
+        # Check for raw JSON or XML formatted data blocks in the prompt
+        has_json = re.search(r'\{\s*"[a-zA-Z0-9_-]+"\s*:', self.content)
+        # Avoid matching system/instruction XML tags (e.g. <instructions>)
+        has_xml_data = re.search(r'<([a-zA-Z0-9_-]+)(?:\s+[^>]+)?>[^<]*</\1>', self.content) and not re.search(r'</?(instructions|context|task|goal|constraints|verify|thinking|source_code)>', self.content)
+        
+        passed = not (has_json or has_xml_data)
+        details = ""
+        score = 100
+        if not passed:
+            issues = []
+            if has_json:
+                issues.append("raw JSON data blocks")
+                score -= 20
+            if has_xml_data:
+                issues.append("verbose XML data nodes")
+                score -= 20
+            details = f"Detected verbose data structures: {', '.join(issues)}. Use Markdown (up to 38% denser than JSON) or YAML for optimal token savings and reasoning."
+        else:
+            details = "No verbose raw JSON/XML data formats detected. Optimal data encoding."
+
+        return {"passed": passed, "details": details, "score": max(0, score)}
+
+    def _check_token_compression(self) -> dict:
+        passed = self.est_tokens <= 1000
+        details = ""
+        if not passed:
+            details = f"Prompt length (~{self.est_tokens} tokens) is high. Recommend compressing with `scripts/compress_prompt.py` to strip pleasantries/filler words and optimize whitespaces."
+        else:
+            details = f"Prompt length is optimal (~{self.est_tokens} tokens)."
+
+        return {"passed": passed, "details": details, "score": 100 if passed else 70}
+
     def generate_report(self) -> str:
         report = []
         data = self.audit()
@@ -203,6 +240,8 @@ class PromptAuditor:
             data["xml"]["score"],
             data["wall_of_text"]["score"],
             data["claude_code"]["score"],
+            data["data_formats"]["score"],
+            data["token_compression"]["score"],
         ]
         avg_score = sum(scores) / len(scores)
         
@@ -217,6 +256,8 @@ class PromptAuditor:
             ("Semantic Delineation (XML Tags)", "xml"),
             ("Instruction Density (Wall of Text)", "wall_of_text"),
             ("Claude Code Specific Mechanics", "claude_code"),
+            ("Data Format Efficiency (Markdown/YAML vs JSON/XML)", "data_formats"),
+            ("Token Compression Potential", "token_compression"),
         ]
         
         for name, key in categories:
@@ -242,6 +283,10 @@ class PromptAuditor:
             actions.append("- Refactor massive text paragraphs into bullet points, nested configurations, or XML nodes.")
         if not data["claude_code"]["passed"]:
             actions.append("- Bound targets explicitly with @file:line, run commands using !command, and reset sessions using `/clear` or `/compact` for long chats.")
+        if not data["data_formats"]["passed"]:
+            actions.append("- Convert tabular or structured raw data blocks from JSON/XML to Markdown or YAML to save tokens.")
+        if not data["token_compression"]["passed"]:
+            actions.append("- Run `python scripts/compress_prompt.py` to compress whitespace and apply symbolic/caveman protocol abbreviations.")
 
         if not actions:
             report.append("Prompt is fully optimized! No immediate changes required.")

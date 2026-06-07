@@ -17,8 +17,21 @@ metadata:
 | Model response generation | 5k–20k | 3–10% |
 | Tool call outputs (logs/tests) | 10k–80k | 5–40% |
 
-Saturnation = ~15–20 turns in complex debug sessions.  
+Saturation = ~15–20 turns in complex debug sessions.  
 At saturation: agent ignores early instructions, repeats corrected mistakes, over-engineers.
+
+---
+
+## Context Window Economics
+
+| Session Phase | Baseline Tokens | Optimized Tokens | Reduction Method |
+|--------------|----------------|------------------|------------------|
+| Initial Setup | 1,000-2,000 | 300-600 | Global CLAUDE.md + MCP |
+| Mid-Session (Turn 15) | 15,000-25,000 | 4,000-7,000 | /compact + selective context |
+| Late-Session (Turn 30) | 50,000+ | 12,000-15,000 | Session forking + prefix caching |
+| Task Transition | 75,000 | 500 | Context reset with state transfer |
+
+---
 
 ## Slash Commands — Priority Order
 
@@ -32,6 +45,15 @@ At saturation: agent ignores early instructions, repeats corrected mistakes, ove
 
 **Primary rule:** `/clear` after every successful unit of work + provide concise state summary in next prompt. Saves 80–90% over long sessions.
 
+---
+
+## Session Reset Guidelines
+- **Conversation Reset Frequency**: Reset every 15-20 messages. History tax compounds exponentially. By turn 30, even trivial instructions can cost 50k+ tokens.
+- **State Transfer**: When resetting with `/clear`, use the Post-Clear Summary Template to transfer state.
+- **Memory Profiling**: Use `/context` to identify large files or tool definitions consuming context, and evict no-longer-required items.
+
+---
+
 ## Post-Clear Summary Template
 
 ```
@@ -40,6 +62,8 @@ Files changed: [list]
 Next task: [specific goal]
 Context: @[relevant files only]
 ```
+
+---
 
 ## CLAUDE.md Architecture
 
@@ -58,6 +82,8 @@ Context: @[relevant files only]
 
 **Treat as lookup table, not docs.**
 
+---
+
 ## Path-Scoped Rules (.claude/rules/)
 
 YAML frontmatter with `paths` key = just-in-time context delivery.
@@ -72,6 +98,8 @@ paths: ["src/components/**"]
 ```
 
 Rules for Go backend never loaded when editing React files. Preserves context for reasoning.
+
+---
 
 ## Compaction Strategy
 
@@ -103,6 +131,8 @@ Reduces response time ~2.3s in high-density sessions. Prevents attention degrada
   }
 }
 ```
+
+---
 
 ## Plan Mode
 

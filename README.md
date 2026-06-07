@@ -1,7 +1,5 @@
 # Agent Skills Monorepo
 
-[![CI](https://github.com/JosephSanjaya/skills/actions/workflows/ci.yml/badge.svg)](https://github.com/JosephSanjaya/skills/actions)
-[![Version](https://img.shields.io/github/v/release/JosephSanjaya/skills)](https://github.com/JosephSanjaya/skills/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > Manage, optimize, and link custom capabilities (skills) and coding rules to your Artificial Intelligence (AI) coding agents.
@@ -20,6 +18,7 @@
 - [Security](#security)
 - [Contributing](#contributing)
 - [Roadmap](#roadmap)
+- [Acknowledgements](#acknowledgements)
 - [License](#license)
 
 ## About
@@ -144,5 +143,14 @@ Follow these steps to add custom skills:
 - Support automated checks for formatting constraints.
 - Provide rule merging capability for IDE configuration profiles.
 
+## Acknowledgements
+This repository includes and links official agent skills from these projects:
+- [android/skills](https://github.com/android/skills) by the Google Android Team.
+- [anthropics/skills](https://github.com/anthropics/skills) by Anthropic.
+- [Kotlin/kotlin-agent-skills](https://github.com/Kotlin/kotlin-agent-skills) by JetBrains.
+- [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills) by skydoves.
+
 ## License
-[MIT](LICENSE) © 2026 Joseph Sanjaya
+This repository is licensed under the MIT License. See the [LICENSE](LICENSE) file for the full text.
+
+© 2026 Joseph Sanjaya

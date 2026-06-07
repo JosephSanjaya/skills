@@ -290,19 +290,24 @@ def interactive_agent_selection(agents, agent_status):
     def get_char():
         """Read a single character from stdin."""
         import select
+        import os
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
             tty.setraw(fd)
-            char = sys.stdin.read(1)
+            # Use os.read to read directly from the file descriptor without buffering
+            char_bytes = os.read(fd, 1)
+            if not char_bytes:
+                return ""
+            char = char_bytes.decode('utf-8', errors='ignore')
+            
             # Handle escape sequences (arrow keys)
             if char == '\x1b':
-                # Use select to check if more characters are available immediately (e.g. within 50ms)
-                # This distinguishes between arrow keys (which send \x1b[A immediately)
-                # and pressing just the ESC key (which sends only \x1b).
-                rlist, _, _ = select.select([sys.stdin], [], [], 0.05)
+                # Use select on the raw file descriptor to check if more characters are available immediately
+                rlist, _, _ = select.select([fd], [], [], 0.05)
                 if rlist:
-                    char += sys.stdin.read(2)
+                    more_bytes = os.read(fd, 2)
+                    char += more_bytes.decode('utf-8', errors='ignore')
             return char
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)

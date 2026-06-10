@@ -1,0 +1,53 @@
+# KSP1 vs KSP2 differences
+
+- **Runtime Process**: KSP1 runs in `KotlinCompileDaemon`. KSP2 runs in Gradle daemon.
+  - Gradle daemon heap often lower. Set: `org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g`.
+  - Debug: Pass `-Dorg.gradle.debug=true` to Gradle (not `KotlinCompileDaemon`).
+- **Implicit Type Resolution**: `val error = mutableMapOf<String, NonExistType>()`
+  - KSP1: Whole type becomes error type.
+  - KSP2: Resolves container (`Map`), reports error on type argument `NonExistType`.
+- **Unbounded Type Parameter**:
+  - KSP1: No bounds.
+  - KSP2: Inserts `Any?` upper bound.
+- **Type Aliases in Function Types/Annotations**:
+  - KSP1: Expands to underlying type.
+  - KSP2: Retains alias.
+- **Fully Qualified Names**:
+  - KSP1: Source constructors have FQN, library constructors lack FQN.
+  - KSP2: No constructor has FQN.
+- **Inner Type Arguments**:
+  - KSP1: Inner types include outer type arguments.
+  - KSP2: Inner types do not include outer type arguments.
+- **Star Projections**:
+  - KSP1: Expands to effective variances.
+  - KSP2: No expansion. Arguments contain nulls.
+- **Java Array Variance**:
+  - KSP1: Invariant upper bound.
+  - KSP2: Covariant upper bound.
+- **Enum Entries Type**:
+  - KSP1: Entry has unique type.
+  - KSP2: Entries share type of enclosing Enum class.
+- **Enum Entry Annotation Arguments**:
+  - KSP1: Evaluates as `KSType` of entry.
+  - KSP2: Evaluates as `KSClassDeclaration` of entry.
+- **Multi-override Order**:
+  - KSP1: BFS (Breadth-First Search). Direct super types first.
+  - KSP2: DFS (Depth-First Search). Recursive super lookup first.
+- **Java Modifiers**:
+  - KSP1: Transient/volatile fields final.
+  - KSP2: Transient/volatile fields open.
+- **Type Annotations**:
+  - KSP1: Present only on type argument symbol.
+  - KSP2: Present on resolved type too.
+- **vararg Parameters**:
+  - KSP1: Java vararg treated as `Array` type.
+  - KSP2: Treated as declared type.
+- **Enum Synthesized Members**:
+  - KSP1: `values` / `valueOf` missing if Kotlin-sourced.
+  - KSP2: `values` / `valueOf` always present.
+- **Data Class Synthesized Members**:
+  - KSP1: `componentN` / `copy` missing if Kotlin-sourced.
+  - KSP2: `componentN` / `copy` always present.
+- **Enum Super Type**:
+  - KSP1: Super type is `Any`.
+  - KSP2: Super type is `Enum`.

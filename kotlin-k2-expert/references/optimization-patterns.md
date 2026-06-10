@@ -18,14 +18,14 @@ object MyKey : GeneratedDeclarationKey() {
     // Attach generation metadata here if needed
 }
 
-override fun getCallableNamesForClass(classSymbol: FirClassSymbol<*>): Set<Name> {
+override fun getCallableNamesForClass(classSymbol: FirClassSymbol<*>, context: MemberGenerationContext): Set<Name> {
     // FAST: just check annotation presence, return hardcoded name set
-    return if (classSymbol.hasAnnotation(TARGET)) GENERATED_NAMES else emptySet()
+    return if (classSymbol.hasAnnotation(TARGET, session)) GENERATED_NAMES else emptySet()
 }
 
-override fun generateFunctions(callableId: CallableId, ctx: MemberGenerationContext?): List<FirNamedFunctionSymbol> {
-    // Extract metadata from ctx.owner's origin — O(1), no re-parsing
-    val ownerKey = ctx?.owner?.origin as? FirDeclarationOrigin.Plugin
+override fun generateFunctions(callableId: CallableId, context: MemberGenerationContext?): List<FirNamedFunctionSymbol> {
+    // Extract metadata from context.owner's origin — O(1), no re-parsing
+    val ownerKey = context?.owner?.origin as? FirDeclarationOrigin.Plugin
     // Build and return function signature (no body)
     return listOf(buildSignature(callableId, MyKey))
 }

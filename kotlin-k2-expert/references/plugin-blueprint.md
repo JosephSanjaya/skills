@@ -94,10 +94,12 @@ package com.example.plugin
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrarAdapter
 
+@OptIn(ExperimentalCompilerApi::class)
 class MyPluginRegistrar : CompilerPluginRegistrar() {
     override val supportsK2 = true
     override val pluginId = "com.example.my-plugin" // Must match CLI processor + Gradle
@@ -108,7 +110,6 @@ class MyPluginRegistrar : CompilerPluginRegistrar() {
 
         val msgCollector = config.get(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
         val lookupTracker = config.get(CommonConfigurationKeys.LOOKUP_TRACKER)
-        val expectActualTracker = config.get(CommonConfigurationKeys.EXPECT_ACTUAL_TRACKER)
 
         // FIR (frontend — signatures, checkers)
         FirExtensionRegistrarAdapter.registerExtension(MyFirRegistrar())
@@ -138,22 +139,34 @@ class MyFirRegistrar : FirExtensionRegistrar() {
 ```kotlin
 package com.example.plugin.fir
 
+import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
+import org.jetbrains.kotlin.fir.declarations.hasAnnotation
+import org.jetbrains.kotlin.fir.declarations.builder.buildNamedFunction
+import org.jetbrains.kotlin.fir.declarations.impl.FirDeclarationStatusImpl
 import org.jetbrains.kotlin.fir.extensions.FirDeclarationGenerationExtension
 import org.jetbrains.kotlin.fir.extensions.MemberGenerationContext
 import org.jetbrains.kotlin.fir.symbols.impl.*
+import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.fir.types.typeContext // REQUIRED to resolve session.typeContext
+import org.jetbrains.kotlin.fir.toFirResolvedTypeRef
 import org.jetbrains.kotlin.name.*
 
 class MyFirGenerator(session: FirSession) : FirDeclarationGenerationExtension(session) {
 
     object Key : org.jetbrains.kotlin.GeneratedDeclarationKey()
 
-    override fun getCallableNamesForClass(classSymbol: FirClassSymbol<*>): Set<Name> {
+    // Context parameter is non-null for names discovery in Kotlin 2.x
+    override fun getCallableNamesForClass(classSymbol: FirClassSymbol<*>, context: MemberGenerationContext): Set<Name> {
         // Only generate for annotated classes
-        if (!classSymbol.hasAnnotation(MY_ANNOTATION_FQN)) return emptySet()
+        if (!classSymbol.hasAnnotation(MY_ANNOTATION_FQN, session)) return emptySet()
         return setOf(Name.identifier("generatedMethod"))
     }
 
+    // Context parameter is nullable for function generation in Kotlin 2.x
     override fun generateFunctions(
         callableId: CallableId,
         context: MemberGenerationContext?
@@ -161,11 +174,20 @@ class MyFirGenerator(session: FirSession) : FirDeclarationGenerationExtension(se
         if (callableId.callableName.asString() != "generatedMethod") return emptyList()
         if (context == null) return emptyList()
 
+        val functionSymbol = FirNamedFunctionSymbol(callableId)
+        
         // Build signature only — NO body. Body filled in IR.
-        // Use Key as origin for Fir2Ir symbol mapping.
-        val functionSymbol = FirSimpleFunctionSymbol(callableId)
-        // ... configure return type, parameters, visibility using FirDeclarationBuilder
-        return listOf(functionSymbol)
+        // In 2.3.20/2.4.0: buildResolvedTypeRef requires `coneType = ...` (previously `type = ...`)
+        val function = buildNamedFunction {
+            moduleData = session.moduleData
+            origin = FirDeclarationOrigin.Plugin(Key)
+            status = FirDeclarationStatusImpl(Visibilities.PUBLIC, Modality.FINAL)
+            name = callableId.callableName
+            symbol = functionSymbol
+            returnTypeRef = session.builtinTypes.stringType.coneType.toFirResolvedTypeRef()
+        }
+        
+        return listOf(function.symbol)
     }
 
     companion object {
@@ -173,6 +195,7 @@ class MyFirGenerator(session: FirSession) : FirDeclarationGenerationExtension(se
     }
 }
 ```
+
 
 ## FirAdditionalCheckersExtension
 

@@ -126,8 +126,8 @@ Create a text file containing the fully-qualified class name of your `RuleSetPro
 ## 4. Other Guide References
 
 For advanced topics, refer to the following dedicated manuals:
-- **Type Resolution (Analysis API)**: [types.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/types.md)
-- **Auto-Correction & AST Mutation**: [autocorrect.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/autocorrect.md)
-- **Unit Testing Rules**: [testing.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/testing.md)
-- **Reports & Output Presentation**: [reports.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/reports.md)
-- **Baseline Suppression Support**: [baseline.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/baseline.md)
+- **Type Resolution (Analysis API)**: [types.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/types.md)
+- **Auto-Correction & AST Mutation**: [autocorrect.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/autocorrect.md)
+- **Unit Testing Rules**: [testing.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/testing.md)
+- **Reports & Output Presentation**: [reports.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/reports.md)
+- **Baseline Suppression Support**: [baseline.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/baseline.md)

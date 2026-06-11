@@ -1,6 +1,4 @@
 ---
-
-
 name: detekt-rule-expert
 description: Expert guide for custom Detekt rules (1.x/2.0) & Jetpack Compose quality checks. Use when creating custom Detekt rules, writing AST/PSI visitors, configuring detekt.yml, managing Kotlin type resolution (Analysis API), or enforcing Compose performance/state hoisting.
 ---
@@ -8,58 +6,48 @@ description: Expert guide for custom Detekt rules (1.x/2.0) & Jetpack Compose qu
 # Detekt Rule Expert
 
 <instructions>
-Direct user to write compile-safe, high-performance Detekt rules. Target AST/PSI verification patterns for standard Kotlin and Jetpack Compose constructs. Use pointers. Keep text dense. No filler.
+Direct user to write compile-safe, high-performance Detekt rules. Target AST/PSI verification patterns for standard Kotlin and Jetpack Compose constructs. Check the reference index and routing table below to target specific details.
 </instructions>
 
 <rules>
-## 1. Custom Rules Foundation
 
-- **AST Callback**: Override narrowest node visitor. Do not walk tree if precondition fails.
-- **Detekt 1.x vs 2.0**: FQNs, base class constructor, report types, ServiceLoader paths differ.
-  - *Reference*: [rules.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/rules.md)
-- **Type Resolution**: 1.x uses `BindingContext`; 2.0 uses K2 Analysis API `analyze(element) {}`.
-  - *Reference*: [types.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/types.md)
-- **Auto-Correction**: Wrap mutations in `withAutoCorrect {}`. Build AST using `KtPsiFactory`. Swap with `astReplace`.
-  - *Reference*: [autocorrect.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/autocorrect.md)
-- **Baseline Support**: Report findings on stable named declaration nodes. Avoid file-level or transient node reporting.
-  - *Reference*: [baseline.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/baseline.md)
+## 1. Reference Index
+
+- [rules.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/rules.md): Base classes, AST callbacks, ServiceLoader registration, and Detekt 1.x vs 2.0 differences. Read when writing basic custom rules.
+- [types.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/types.md): Resolving Kotlin type definitions using K1 `bindingContext` vs K2 Analysis API `analyze(element) {}`. Read when rules require type/symbol resolution.
+- [autocorrect.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/autocorrect.md): Auto-correction, AST mutations with `KtPsiFactory`/`astReplace`, and resolving headless compiler test environment crashes. Read when writing autocorrect rules.
+- [baseline.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/baseline.md): Generating stable signatures, anchoring findings to named parent declarations, and preventing baseline bypasses. Read when rules ignore baselines.
+- [compose.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/compose.md): Jetpack Compose AST/PSI checks, modifier reuse, viewmodel forwarding, and remember/composition local validation. Read for Compose-specific checks.
+- [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md): Detekt configuration (`detekt.yml`), setting severities, rule suppression, and excluding custom configuration properties. Read for config and suppression.
 
 ---
 
-## 2. Jetpack Compose AST Rule Parsing
+## 2. Guide Routing
 
-Guidelines for implementing rules that analyze Jetpack Compose specific AST/PSI patterns.
-- *Reference*: [compose.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/compose.md)
-
-### Key Parsing Strategies
-1. **Composable Detection**: Check `@Composable` annotations on functions and getters. Filter out overrides, interface functions, and `@Preview` methods.
-2. **Layout Emitters Count**: Recursively traverse statements in loops/conditionals to count layout-emitting functions (allowlist-based checking).
-3. **Modifier Tracing**: Track modifier reassignments and chain manipulations (`val modifier2 = modifier.fillMaxWidth()`) inside block statements. Verify that modifier parameter is applied to the root node and not reused in descendants.
-4. **ViewModel Forwarding Check**: Match parameter types with regex (`.*ViewModel|.*Presenter`) and scan for nested UI call expressions forwarding these references as arguments.
-5. **CompositionLocal & Remember**: Identify `staticCompositionLocalOf` property declarations and verify if calls (e.g. `movableContentOf`) are wrapped in `remember` parent call scopes.
-
----
-
-## 3. Configuration & Suppression
-
-- **detekt.yml**: Define rulesets, enable/disable, set severity (`error` | `warning` | `info`).
-- **Validation Excludes**: Exclude custom properties in `config.excludes` to prevent validation crashes.
-- **Code Excludes**: Filter out `/build/generated/` at Gradle-task level.
-- **Suppression**: Use `@Suppress("RuleId")` or `@file:Suppress(...)`.
-- *Reference*: [config.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/config.md)
+| Symptom / Query | Reference |
+|---|---|
+| "Write custom rule or register ServiceLoader" | [rules.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/rules.md) |
+| "Resolve types or use K2 compiler analyze {}" | [types.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/types.md) |
+| "Implement auto-correction or fix headless unit test failures" | [autocorrect.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/autocorrect.md) |
+| "Rule bypasses baseline or generates unstable signature" | [baseline.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/baseline.md) |
+| "Compose AST check (ViewModel forwarding, Modifier reuse)" | [compose.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/compose.md) |
+| "Configure detekt.yml, suppress rules, or set severity" | [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md) |
+| "Verify custom rules project structure and dependency scopes" | See Automation Scripts below |
 
 ---
 
-## 4. Verification Script
+## 3. Automation Scripts
 
-Verify custom rules module structure, `compileOnly` scopes, ServiceLoader registration, and `detekt.yml` setup.
-- *Script*: [check_detekt_setup.py](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/scripts/check_detekt_setup.py)
-- *Usage*: `python3 scripts/check_detekt_setup.py <path_to_rules_project_root> [path_to_detekt_yml]`
+```bash
+# Verify custom rule project structure and detekt.yml configuration:
+python3 /Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/scripts/check_detekt_setup.py <path_to_rules_project_root> [path_to_detekt_yml]
+```
 
 </rules>
 
 <constraints>
-- Custom rules **must** declare `detekt-api` as `compileOnly`.
+- All reference files and linked documentation **must** be referenced using their absolute file:/// paths under `/Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/`.
+- Custom rules **must** declare `detekt-api` as `compileOnly` dependency scope.
 - If custom rule set uses config keys, you **must** exclude them under `config.excludes` in `detekt.yml`.
 - Never use `compositionLocalOf` for stable theme tokens; **should** only use `staticCompositionLocalOf`.
 </constraints>

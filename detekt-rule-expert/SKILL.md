@@ -18,9 +18,9 @@ Direct user to write compile-safe, high-performance Detekt rules. Target AST/PSI
 - **Detekt 1.x vs 2.0**: FQNs, base class constructor, report types, ServiceLoader paths differ.
   - *Reference*: [rules.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/rules.md)
 - **Type Resolution**: 1.x uses `BindingContext`; 2.0 uses K2 Analysis API `analyze(element) {}`.
-  - *Reference*: [rules.md#3-type-resolution-analysis-api](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/rules.md#3-type-resolution-analysis-api)
+  - *Reference*: [types.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/types.md)
 - **Auto-Correction**: Wrap mutations in `withAutoCorrect {}`. Build AST using `KtPsiFactory`. Swap with `astReplace`.
-  - *Reference*: [rules.md#4-auto-correction](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/rules.md#4-auto-correction)
+  - *Reference*: [autocorrect.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/autocorrect.md)
 
 ---
 
@@ -59,5 +59,5 @@ Verify custom rules module structure, `compileOnly` scopes, ServiceLoader regist
 <constraints>
 - Custom rules **must** declare `detekt-api` as `compileOnly`.
 - If custom rule set uses config keys, you **must** exclude them under `config.excludes` in `detekt.yml`.
-- Never use `compositionLocalOf` for stable theme tokens; **must** use `staticCompositionLocalOf`.
+- Never use `compositionLocalOf` for stable theme tokens; **should** only use `staticCompositionLocalOf`.
 </constraints>

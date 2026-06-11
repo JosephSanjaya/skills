@@ -45,3 +45,29 @@
   - Methods: `isAssignableFrom(that: KSType): Boolean`, `makeNullable()`, `makeNotNullable()`.
 - **`KSValueArgument`**: Argument passed to annotation.
   - Properties: `name: KSName?`, `value: Any?`.
+
+## Crucial Extension Functions & Imports
+
+Many common AST utility and validation APIs in KSP are defined as extension functions in the `com.google.devtools.ksp` package. You must explicitly import them in your Kotlin source files:
+
+*   **`KSNode.validate(): Boolean`**: Recursively validates that all semantic types under this node are fully resolved (returns `false` if they represent error types, allowing deferring compilation to subsequent rounds).
+    ```kotlin
+    import com.google.devtools.ksp.validate
+    ```
+*   **`KSDeclaration.closestClassDeclaration(): KSClassDeclaration?`**: Recursively walks up the parent tree to find the nearest enclosing class declaration.
+    ```kotlin
+    import com.google.devtools.ksp.closestClassDeclaration
+    ```
+*   **`KSClassDeclaration.getDeclaredProperties(): Sequence<KSPropertyDeclaration>`**: Returns only properties declared directly in this class body (ignoring superclass properties).
+    ```kotlin
+    import com.google.devtools.ksp.getDeclaredProperties
+    ```
+*   **`KSClassDeclaration.getDeclaredFunctions(): Sequence<KSFunctionDeclaration>`**: Returns only functions declared directly in this class body.
+    ```kotlin
+    import com.google.devtools.ksp.getDeclaredFunctions
+    ```
+*   **`Resolver.getClassDeclarationByName(name: KSName): KSClassDeclaration?`**: To look up a class declaration by its qualified name string, first convert it to a `KSName` using `Resolver.getKSNameFromString`.
+    ```kotlin
+    val qualifiedName = "com.example.MyClass"
+    val classDeclaration = resolver.getClassDeclarationByName(resolver.getKSNameFromString(qualifiedName))
+    ```

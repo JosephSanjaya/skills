@@ -17,7 +17,10 @@ Provide design, configuration, and debugging assistance for Google Kotlin Symbol
 |---|---|---|---|---|
 | `2.4.0` | `2.3.9` (KSP2 default) | `7.6.3` - `9.5.0` | `8.5.2` - `9.1.0` | `17`+ |
 | `2.3.20` | `2.3.7` | `7.6.3` - `9.5.0` | `8.5.2` - `9.1.0` | `17`+ |
-| `2.0.x` | `2.0.0` - `2.0.21` | `7.4` - `8.10` | `8.0` - `8.5` | `17`+ |
+| `2.1.20` | `2.1.20-1.0.30` | `7.6.3` - `9.5.0` | `8.5.2` - `9.1.0` | `17`+ |
+| `2.0.21` | `2.0.21-1.0.26` | `7.4` - `8.10` | `8.0` - `8.5` | `17`+ |
+
+*Note: Starting with KSP 2.3.0 (for Kotlin 2.2.x+), KSP uses independent semantic versioning (e.g., `2.3.9`). For older Kotlin versions (e.g., `2.1.x` and `2.0.x`), KSP versions strictly follow the `<kotlin-version>-<ksp-version>` coupled format.*
 
 </version_matrix>
 

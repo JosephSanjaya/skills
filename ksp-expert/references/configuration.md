@@ -13,8 +13,13 @@ pluginManagement {
 
 // build.gradle.kts (JVM/Android)
 plugins {
-    kotlin("jvm") version "2.4.0"
-    id("com.google.devtools.ksp") version "2.3.9"
+    // Kotlin version
+    kotlin("jvm") version "2.1.0"
+    
+    // KSP version format depends on the version series:
+    // 1. Independent versioning (KSP 2.3.0+): Uses standard semantic versions (e.g., "2.3.9") independent of Kotlin
+    // 2. Coupled versioning (Pre-2.3.0 KSP2 and all KSP1): Must match Kotlin version exactly (e.g., "2.1.0-1.0.29")
+    id("com.google.devtools.ksp") version "2.1.0-1.0.29" 
 }
 
 dependencies {

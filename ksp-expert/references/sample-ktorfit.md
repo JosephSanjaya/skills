@@ -36,17 +36,14 @@ class KtorfitProcessor(
     private val env: SymbolProcessorEnvironment,
     private val ktorfitOptions: KtorfitOptions
 ) : SymbolProcessor {
-    private var invoked = false
 
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        if (invoked) return emptyList()
-        invoked = true
-
         val annotatedFunctions = getAnnotatedFunctions(resolver)
         val groupedClasses = annotatedFunctions
             .groupBy { it.closestClassDeclaration() }
-            .mapNotNull { (classDec) ->
-                classDec?.toClassData(KtorfitLogger(env.logger))
+            .mapNotNull { (classDec, functions) ->
+                // Process the functions associated with this class, avoiding eager class-wide scans
+                classDec?.toClassData(functions, KtorfitLogger(env.logger))
             }
 
         // Generate files
@@ -87,10 +84,13 @@ fun generateImplClass(
         val fileName = classData.implName
         val packageName = classData.packageName
         val sourceFile = classData.ksFile
+        // Safely construct Dependencies to handle nullable containing file (e.g. from classpath)
+        val dependencies = sourceFile?.let { Dependencies(aggregating = false, it) }
+            ?: Dependencies(aggregating = false)
 
         // Write isolating output: only invalidates if containing source file changes
         codeGenerator.createNewFile(
-            dependencies = Dependencies(aggregating = false, sourceFile),
+            dependencies = dependencies,
             packageName = packageName,
             fileName = fileName,
             extensionName = "kt"

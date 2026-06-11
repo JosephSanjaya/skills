@@ -21,6 +21,8 @@ Direct user to write compile-safe, high-performance Detekt rules. Target AST/PSI
   - *Reference*: [types.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/types.md)
 - **Auto-Correction**: Wrap mutations in `withAutoCorrect {}`. Build AST using `KtPsiFactory`. Swap with `astReplace`.
   - *Reference*: [autocorrect.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/autocorrect.md)
+- **Baseline Support**: Report findings on stable named declaration nodes. Avoid file-level or transient node reporting.
+  - *Reference*: [baseline.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/baseline.md)
 
 ---
 

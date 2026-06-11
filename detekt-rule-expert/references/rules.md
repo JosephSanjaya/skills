@@ -130,3 +130,4 @@ For advanced topics, refer to the following dedicated manuals:
 - **Auto-Correction & AST Mutation**: [autocorrect.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/autocorrect.md)
 - **Unit Testing Rules**: [testing.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/testing.md)
 - **Reports & Output Presentation**: [reports.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/reports.md)
+- **Baseline Suppression Support**: [baseline.md](file:///Users/jsanjaya/Projects/skills/detekt-rule-expert/references/baseline.md)

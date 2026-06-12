@@ -45,11 +45,11 @@ Do not use legacy eager APIs (`tasks.create()`, `tasks.all`, `tasks.getByName()`
   - Core task anatomy, lifecycle phases, lazy task registration APIs, TaskProvider, and Gradle 9.5.1 deprecations.
   - *Read when*: Understanding task lifecycle, implementing `DefaultTask`, or using Gradle 9.5.1+ features.
 - [configuration-cache.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/configuration-cache.md)
-  - Configuration cache rules, preventing `Project` instance leaks in task actions, lazily reading env/sys properties, and secure secrets handling.
-  - *Read when*: Fixing configuration cache violations, avoiding configuration-time execution, or handling environment variables.
+  - Configuration cache rules, preventing `Project` instance leaks in task actions, lazily reading env/sys properties, secure secrets handling, and script-object capture via `onlyIf`/`doFirst`/`Provider.map {}` lambdas in `.gradle.kts`.
+  - *Read when*: Fixing configuration cache violations, avoiding configuration-time execution, handling environment variables, or getting "cannot serialize Gradle script object references" errors.
 - [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md)
-  - Managed properties, up-to-date checks, path sensitivity, Kotlin getter `@get:` requirements, and incremental tasks via `InputChanges`.
-  - *Read when*: Declaring inputs/outputs, troubleshooting caching/incremental execution, or modeling file parameters.
+  - Managed properties, up-to-date checks, path sensitivity, Kotlin getter `@get:` requirements, incremental tasks via `InputChanges`, `SourceTask.source()` double-registration, `onlyIf` purity rules, and `val` shadowing of `Project` extension properties.
+  - *Read when*: Declaring inputs/outputs, troubleshooting caching/incremental execution, modeling file parameters, or using `onlyIf` with side effects.
 - [groovy-vs-kts.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/groovy-vs-kts.md)
   - Comprehensive comparison between Groovy and Kotlin DSL formats, type-safe task accessors, and migration rules.
   - *Read when*: Migrating build scripts from Groovy to Kotlin DSL, or writing task wiring in both languages.
@@ -69,7 +69,13 @@ Do not use legacy eager APIs (`tasks.create()`, `tasks.all`, `tasks.getByName()`
 | "Configuration cache state could not be cached because Project instance leaked" | [configuration-cache.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/configuration-cache.md) |
 | "Task output is not cacheable" or "How to define inputs and outputs" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
 | "Kotlin getter annotations not picked up" or "Missing task properties" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
+| "`source()` and `inputs.files()` both declared on same Detekt/SourceTask" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
+| "Side effects in `onlyIf`" or "mkdirs / writeText inside onlyIf" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
+| "`val rootDir` shadowing or `val projectDir` shadows Project extension" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
 | "How to run command in task action for configuration cache" | [configuration-cache.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/configuration-cache.md) |
+| `"cannot serialize Gradle script object references"` error | [configuration-cache.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/configuration-cache.md) |
+| "`onlyIf {}` or `doFirst {}` in `.gradle.kts` breaks CC" | [configuration-cache.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/configuration-cache.md) |
+| "`Provider.map {}` in script breaks configuration cache" | [configuration-cache.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/configuration-cache.md) |
 | "How to write a functional test using GradleRunner or TestKit" | [testing-debugging.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/testing-debugging.md) |
 | "Gradle 9.5.1 task deprecations or Task.doFirst / Task.doLast smells" | [basics.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/basics.md) |
 

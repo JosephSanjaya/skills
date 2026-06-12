@@ -61,8 +61,8 @@ Eliminate imperative abstract base classes and global static singletons. Use cle
 ## Reference Index
 
 - [architecture.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-convention-expert/references/architecture.md)
-  - Shared build-logic module design, convention layers, and source sharing via Git submodules.
-  - *Read when*: Structuring composite builds, dividing convention plugins into layers, or linking plugins across repos.
+  - Shared build-logic module design, convention layers, source sharing via Git submodules, root-project convention plugin pattern, and replacing `alias(libs.plugins.X)` with convention plugin IDs.
+  - *Read when*: Structuring composite builds, dividing convention plugins into layers, linking plugins across repos, or applying a convention plugin to the root project.
 - [version-catalog.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-convention-expert/references/version-catalog.md)
   - Resolving the Version Catalog bootstrapping paradox (Issue #15383) via classpath injection, string-based lookup, or plugin-owned catalogs (Issue #36337).
   - *Read when*: Resolving `Unresolved reference: libs` inside convention plugins or configuring central catalogs.
@@ -87,6 +87,8 @@ Eliminate imperative abstract base classes and global static singletons. Use cle
 | "Cannot add extension with name 'kotlin', as there is an extension already registered" | [agp-migration.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-convention-expert/references/agp-migration.md) |
 | "Configuration cache state could not be cached because Project instance leaked" | [performance.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-convention-expert/references/performance.md) |
 | "How to share conventions across distinct corporate repositories" | [architecture.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-convention-expert/references/architecture.md) |
+| "Convention plugin applied to root project" or "repo-wide tasks in buildSrc" | [architecture.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-convention-expert/references/architecture.md) |
+| "Replace alias(libs.plugins.X) with convention plugin" or "no version needed in root plugins block" | [architecture.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-convention-expert/references/architecture.md) |
 | "How to scaffold a modular preconfigured build-logic directory" | See Automation Scripts section below |
 
 </routing_table>

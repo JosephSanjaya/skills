@@ -84,7 +84,92 @@ abstract val apk: RegularFileProperty
 
 ---
 
-## 5. Incremental Tasks with `InputChanges`
+## 5. `SourceTask.source()` and Double Input Registration
+
+Tasks that extend `SourceTask` (including `io.gitlab.arturbosch.detekt.Detekt`) already register their source files as `@InputFiles` via the `source()` method. Calling `inputs.files()` on the same provider is redundant and creates duplicate tracking.
+
+### Anti-Pattern: Double Registration
+```kotlin
+tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAutoFormat") {
+    source(changedKotlinFiles)
+    inputs.files(changedKotlinFiles) // REDUNDANT — source() already tracks this
+}
+```
+
+### Correct Pattern: Single Registration via `source()`
+```kotlin
+tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAutoFormat") {
+    source(changedKotlinFiles) // sufficient — SourceTask registers as @InputFiles internally
+}
+```
+
+This applies to any task that extends `SourceTask`: `JavaCompile`, `Detekt`, `Checkstyle`, `SpotBugs`, etc.
+
+---
+
+## 6. `onlyIf` Must Be a Pure Predicate
+
+`onlyIf` is evaluated during the execution phase to decide whether to run the task. It must be a pure boolean predicate — no side effects. File I/O, process spawning, or state mutation inside `onlyIf` runs even when the task is skipped and violates the single-responsibility of the predicate.
+
+### Anti-Pattern: Side Effects in `onlyIf`
+```kotlin
+tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAutoFormatHead") {
+    onlyIf {
+        // AVOID: file I/O and process exec are side effects, not predicates
+        ProcessBuilder("git", "log", "-1", "--format=%s").start().inputStream.bufferedReader().readText()
+        java.io.File("$rootDir/build/reports").mkdirs()
+        java.io.File("$rootDir/build/reports/scope.txt").writeText("...")
+        files.isNotEmpty()
+    }
+}
+```
+
+### Correct Pattern: Predicate Only in `onlyIf`, Side Effects in `doFirst`
+```kotlin
+tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAutoFormatHead") {
+    val headCommitMessage = providers.exec {
+        commandLine("git", "log", "-1", "--format=%s")
+    }.standardOutput.asText.map { it.trim() }
+
+    doFirst {
+        // side effects belong here — only runs when task actually executes
+        java.io.File("$repoRootPath/build/reports").mkdirs()
+        java.io.File("$repoRootPath/build/reports/scope.txt").writeText("...")
+    }
+
+    onlyIf {
+        val message = headCommitMessage.get() // pure read, no mutation
+        val isValid = Regex("""^\(CIT/...""").containsMatchIn(message)
+        isValid && files.isNotEmpty()
+    }
+}
+```
+
+---
+
+## 7. Kotlin DSL `val` Shadowing `Project` Extension Properties
+
+In Kotlin DSL build scripts, declaring a `val` with the same name as a `Project` extension property silently shadows it in the current scope. The compiler picks your local `val` without warning.
+
+Common shadowed names:
+- `rootDir` — shadows `Project.rootDir: File`
+- `projectDir` — shadows `Project.projectDir: File`
+- `buildDir` — shadows `Project.buildDir: File` (deprecated in Gradle 7+)
+
+### Anti-Pattern: Shadowing `rootDir`
+```kotlin
+val rootDir = rootProject.projectDir.absolutePath // shadows Project.rootDir
+// Any reference to `rootDir` below now returns String, not File
+```
+
+### Correct Pattern: Use a Distinct Name
+```kotlin
+val repoRootPath = rootProject.projectDir.absolutePath // no shadowing
+```
+
+---
+
+## 8. Incremental Tasks with `InputChanges`
 
 If a task has many input files and can process only the files that changed since the last execution, it should use an **Incremental Task Action**.
 

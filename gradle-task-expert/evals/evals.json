@@ -1,0 +1,23 @@
+{
+  "skill_name": "gradle-task-expert",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Migrate the following eager, imperative task definition in Groovy DSL to a lazy, configuration-cache-compliant custom task class and registration in Kotlin DSL (KTS) using managed properties:\n\ntask myGreeting {\n    group = 'custom'\n    description = 'Prints a message and writes it to a file'\n    def msg = 'Hello World'\n    inputs.property('message', msg)\n    outputs.file(file('build/greeting.txt'))\n    \n    doLast {\n        println msg\n        file('build/greeting.txt').text = msg\n    } \n}",
+      "expected_output": "An abstract class extending DefaultTask in Kotlin DSL with @get:Input on a Property<String> and @get:OutputFile on a RegularFileProperty, registered using tasks.register, with the action performing execution work without referencing project or dynamic fields.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "Write a custom Gradle task class in Kotlin DSL that runs a python script at execution time (not configuration time), takes the script file as input, and writes the stdout to an output file. Ensure it is fully configuration-cache compliant and caches execution by default.",
+      "expected_output": "An abstract class annotated with @CacheableTask extending DefaultTask, with script input annotated with @get:InputFile and @get:PathSensitive(PathSensitivity.RELATIVE), output annotated with @get:OutputFile, and utilizing an injected ExecOperations service via @get:Inject to run the process in the task action.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Fix this Kotlin DSL task declaration so it complies with task configuration avoidance, input path sensitivity, and caching validation rules:\n\nopen class GenerateDocs : DefaultTask() {\n    @Input\n    val inputDir = File(\"docs/src\")\n    @OutputFile\n    val outputFile = File(\"build/docs.html\")\n    \n    @TaskAction\n    fun run() {\n        println(\"Generating documentation...\")\n    }\n}",
+      "expected_output": "An abstract class, using @get:InputDirectory and @get:PathSensitive(PathSensitivity.RELATIVE) for input directory, @get:OutputFile for output file, using managed properties DirectoryProperty and RegularFileProperty, and either @CacheableTask or @DisableCachingByDefault.",
+      "files": []
+    }
+  ]
+}

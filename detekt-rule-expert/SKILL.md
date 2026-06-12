@@ -18,7 +18,7 @@ Direct user to write compile-safe, high-performance Detekt rules. Target AST/PSI
 - [autocorrect.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/autocorrect.md): Auto-correction, AST mutations with `KtPsiFactory`/`astReplace`, and resolving headless compiler test environment crashes. Read when writing autocorrect rules.
 - [baseline.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/baseline.md): Generating stable signatures, anchoring findings to named parent declarations, and preventing baseline bypasses. Read when rules ignore baselines.
 - [compose.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/compose.md): Jetpack Compose AST/PSI checks, modifier reuse, viewmodel forwarding, and remember/composition local validation. Read for Compose-specific checks.
-- [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md): Detekt configuration (`detekt.yml`), setting severities, rule suppression, and excluding custom configuration properties. Read for config and suppression.
+- [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md): Detekt configuration (`detekt.yml`), setting severities, rule suppression, excluding custom config properties, and registering custom scoped Detekt Gradle tasks (autoCorrect on git diff / branch commits). Read for config, suppression, and custom task patterns.
 
 ---
 
@@ -32,6 +32,9 @@ Direct user to write compile-safe, high-performance Detekt rules. Target AST/PSI
 | "Rule bypasses baseline or generates unstable signature" | [baseline.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/baseline.md) |
 | "Compose AST check (ViewModel forwarding, Modifier reuse)" | [compose.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/compose.md) |
 | "Configure detekt.yml, suppress rules, or set severity" | [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md) |
+| "Register custom scoped Detekt task (autoCorrect on git diff or branch commits)" | [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md) §6 |
+| "Config cache error with custom Detekt task on Gradle 9+" | [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md) §6 |
+| "source() / setSource() ignored inside doFirst" | [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md) §6 |
 | "Verify custom rules project structure and dependency scopes" | See Automation Scripts below |
 
 ---

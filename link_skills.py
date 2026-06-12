@@ -639,12 +639,7 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
             for skill_name, skill_src in agent_skills.items():
                 skill_dest = os.path.join(p, skill_name)
                 
-                if os.path.exists(skill_dest):
-                    # Check if it's already a directory (from previous copy)
-                    if os.path.isdir(skill_dest) and not os.path.islink(skill_dest):
-                        # Already exists as a directory, skip or update
-                        continue
-                    
+                if os.path.exists(skill_dest) or os.path.islink(skill_dest):
                     # Collision!
                     print(f"  [!] Collision: Skill '{skill_name}' already exists in {p}")
                     if do_backup and not os.path.islink(skill_dest):

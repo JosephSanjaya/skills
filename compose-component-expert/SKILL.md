@@ -41,13 +41,18 @@ Refer to specific markdown files in references/ for deep details.
 ## 3. Related Compose Skills
 
 Jump to specialized skills:
-- [adaptive](file:///Users/jsanjaya/.gemini/config/skills/android-jetpack-compose-adaptive/SKILL.md) — Adaptive/multi-pane UI layouts.
-- [compose-performance-skills](file:///Users/jsanjaya/Projects/skills/compose-performance-skills/INDEX.md) — Stability, recomposition, and list performance optimizations.
-- [edge-to-edge](file:///Users/jsanjaya/.gemini/config/skills/android-system-edge-to-edge/SKILL.md) — System bar margins, IME insets.
-- [jetpack-compose-m3-theme-expert](file:///Users/jsanjaya/.gemini/config/skills/jetpack-compose-m3-theme-expert/SKILL.md) — Material 3 custom theming.
-- [migrate-xml-views-to-jetpack-compose](file:///Users/jsanjaya/.gemini/config/skills/android-jetpack-compose-migration-migrate-xml-views-to-jetpack-compose/SKILL.md) — Legacy XML migration.
-- [navigation-3](file:///Users/jsanjaya/.gemini/config/skills/android-navigation-navigation-3/SKILL.md) — Navigation 3 Scenes & backstacks.
-- [styles](file:///Users/jsanjaya/.gemini/config/skills/android-jetpack-compose-theming-styles/SKILL.md) — Component styles API integration.
+- `android-jetpack-compose-adaptive` — Adaptive/multi-pane UI layouts.
+- `android-jetpack-compose-migration-migrate-xml-views-to-jetpack-compose` — Legacy XML migration.
+- `android-jetpack-compose-theming-styles` — Component styles API integration.
+- `android-navigation-navigation-3` — Navigation 3 Scenes & backstacks.
+- `android-system-edge-to-edge` — System bar margins, IME insets.
+- `compose-lists-optimizing-lazy-layouts` — Lazy layout scroll performance.
+- `compose-modifiers-migrating-to-modifier-node` — Modifier.Node custom modifier optimization.
+- `compose-recomposition-choosing-derivedstateof` — derivedStateOf usage rules.
+- `compose-recomposition-deferring-state-reads` — Deferring state reads.
+- `compose-side-effects-collecting-flows-safely` — Lifecycle-aware flow collection.
+- `compose-stability-stabilizing-compose-types` — Parameter stability optimization.
+- `jetpack-compose-m3-theme-expert` — Material 3 custom theming.
 
 <constraints>
 - Expose stateless Slot APIs; trailing lambda last; first optional param MUST be `modifier: Modifier = Modifier`.

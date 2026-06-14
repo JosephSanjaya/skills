@@ -1,9 +1,9 @@
 ---
-name: jetpack-compose-m3-theme-expert
+name: compose-m3-theme-expert
 description: Architect, implement, and optimize Material 3 custom themes in Jetpack Compose. Use this skill whenever the user mentions Android UI design systems, MaterialTheme overrides, dynamic wallpaper-derived colors, custom CompositionLocal providers (like NiaTheme gradients or background tokens), theme recomposition optimization, @Stable/@Immutable state properties, or custom styling validation scripts, even if they only ask about a basic Compose color or shape change.
 ---
 
-# Jetpack Compose M3 Theme Expert
+# Compose M3 Theme Expert
 
 <triggers>
 Triggers on Android UI styling, custom themes, Material 3 components, dynamic theme values, wallpaper color schemes, CompositionLocal configurations, and Compose rendering optimizations.
@@ -16,13 +16,13 @@ Construct dynamic-wallpaper-derived schemes with solid fallbacks. Enforce parame
 ## 1. Quick Reference Index
 
 <references>
-- **NiaTheme & Custom Locals**: [nia_pattern.md](file:///Users/jsanjaya/Projects/skills/jetpack-compose-m3-theme-expert/references/nia_pattern.md)
-- **CompositionLocal Mechanics**: [composition_locals.md](file:///Users/jsanjaya/Projects/skills/jetpack-compose-m3-theme-expert/references/composition_locals.md)
-- **Monet Dynamic Colors**: [dynamic_colors.md](file:///Users/jsanjaya/Projects/skills/jetpack-compose-m3-theme-expert/references/dynamic_colors.md)
-- **Compose Performance Tuning**: [performance_tuning.md](file:///Users/jsanjaya/Projects/skills/jetpack-compose-m3-theme-expert/references/performance_tuning.md)
-- **Theme Unit Testing**: [testing_patterns.md](file:///Users/jsanjaya/Projects/skills/jetpack-compose-m3-theme-expert/references/testing_patterns.md)
-- **DESIGN.md Theme Translation**: [design_md_mapping.md](file:///Users/jsanjaya/Projects/skills/jetpack-compose-m3-theme-expert/references/design_md_mapping.md)
-- **Consistent Component Usage**: [component_usage.md](file:///Users/jsanjaya/Projects/skills/jetpack-compose-m3-theme-expert/references/component_usage.md)
+- **NiaTheme & Custom Locals**: [nia_pattern.md](file:///Users/jsanjaya/Projects/skills/compose-m3-theme-expert/references/nia_pattern.md)
+- **CompositionLocal Mechanics**: [composition_locals.md](file:///Users/jsanjaya/Projects/skills/compose-m3-theme-expert/references/composition_locals.md)
+- **Monet Dynamic Colors**: [dynamic_colors.md](file:///Users/jsanjaya/Projects/skills/compose-m3-theme-expert/references/dynamic_colors.md)
+- **Compose Performance Tuning**: [performance_tuning.md](file:///Users/jsanjaya/Projects/skills/compose-m3-theme-expert/references/performance_tuning.md)
+- **Theme Unit Testing**: [testing_patterns.md](file:///Users/jsanjaya/Projects/skills/compose-m3-theme-expert/references/testing_patterns.md)
+- **DESIGN.md Theme Translation**: [design_md_mapping.md](file:///Users/jsanjaya/Projects/skills/compose-m3-theme-expert/references/design_md_mapping.md)
+- **Consistent Component Usage**: [component_usage.md](file:///Users/jsanjaya/Projects/skills/compose-m3-theme-expert/references/component_usage.md)
 </references>
 
 ## 2. Core Constraints (Don'ts > Do's)
@@ -103,8 +103,16 @@ fun AppTheme(
 ## 4. DESIGN.md to Theme Pipeline Verification
 Verify specs match theme files using the validation script:
 ```bash
-python3 /Users/jsanjaya/Projects/skills/jetpack-compose-m3-theme-expert/scripts/validate_theme_file.py <path/to/DESIGN.md>
+python3 /Users/jsanjaya/Projects/skills/compose-m3-theme-expert/scripts/validate_theme_file.py <path/to/DESIGN.md>
 ```
+
+## 5. Related Compose Skills
+
+Jump to specialized skills:
+- `compose-component-expert` — Design stateless components, slot APIs, and Style API integration using theme colors.
+- `android-jetpack-compose-adaptive` — Adaptive layouts.
+- `android-jetpack-compose-theming-styles` — Material 3 component styling integration.
+- `compose-stability-stabilizing-compose-types` — Type stability in theme providers.
 
 <constraints>
 Developers must follow this output schema and ensure that generated theme configurations satisfy:

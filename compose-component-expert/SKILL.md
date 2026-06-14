@@ -47,12 +47,12 @@ Jump to specialized skills:
 - `android-navigation-navigation-3` — Navigation 3 Scenes & backstacks.
 - `android-system-edge-to-edge` — System bar margins, IME insets.
 - `compose-lists-optimizing-lazy-layouts` — Lazy layout scroll performance.
+- `compose-m3-theme-expert` — Material 3 custom theming.
 - `compose-modifiers-migrating-to-modifier-node` — Modifier.Node custom modifier optimization.
 - `compose-recomposition-choosing-derivedstateof` — derivedStateOf usage rules.
 - `compose-recomposition-deferring-state-reads` — Deferring state reads.
 - `compose-side-effects-collecting-flows-safely` — Lifecycle-aware flow collection.
 - `compose-stability-stabilizing-compose-types` — Parameter stability optimization.
-- `jetpack-compose-m3-theme-expert` — Material 3 custom theming.
 
 <constraints>
 - Expose stateless Slot APIs; trailing lambda last; first optional param MUST be `modifier: Modifier = Modifier`.

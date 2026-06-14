@@ -42,6 +42,7 @@ Refer to specific markdown files in references/ for deep details.
 
 Jump to specialized skills:
 - [adaptive](file:///Users/jsanjaya/.gemini/config/skills/android-jetpack-compose-adaptive/SKILL.md) — Adaptive/multi-pane UI layouts.
+- [compose-performance-skills](file:///Users/jsanjaya/Projects/skills/compose-performance-skills/INDEX.md) — Stability, recomposition, and list performance optimizations.
 - [edge-to-edge](file:///Users/jsanjaya/.gemini/config/skills/android-system-edge-to-edge/SKILL.md) — System bar margins, IME insets.
 - [jetpack-compose-m3-theme-expert](file:///Users/jsanjaya/.gemini/config/skills/jetpack-compose-m3-theme-expert/SKILL.md) — Material 3 custom theming.
 - [migrate-xml-views-to-jetpack-compose](file:///Users/jsanjaya/.gemini/config/skills/android-jetpack-compose-migration-migrate-xml-views-to-jetpack-compose/SKILL.md) — Legacy XML migration.

@@ -115,16 +115,18 @@ Best practices for configuring developer machines globally:
     uv tool install pyright  # installs globally available pyright binary
     uv tool list             # list installed global tools
     ```
-4.  **Global Config (`uv.toml`)**: Standardize defaults at `~/.config/uv/uv.toml`:
+4.  **Global Config (`uv.toml`)**: Standardize defaults at `~/.config/uv/uv.toml`. Avoid using legacy `require-virtualenv` (which is rejected by modern `uv` as it natively blocks global installs by default) and use the correct top-level key for downloads:
     ```toml
-    [pip]
-    require-virtualenv = true   # prevent accidental global pip installs
-    
-    [python]
-    downloads = "auto"          # automatically download missing python versions
+    # Global uv configuration
+    python-downloads = "automatic"
     ```
 5.  **Shell Integration**: Add completion helpers to your shell profile (`~/.zshrc` or `~/.bashrc`):
     ```bash
     echo 'eval "$(uv generate-shell-completion zsh)"' >> ~/.zshrc
     echo 'eval "$(uvx --generate-shell-completion zsh)"' >> ~/.zshrc
+    ```
+6.  **Symlinks vs. Aliases**: Never alias `python` or `python3` to `uv run python`. This causes recursion loops and overrides active project virtual environments. Instead, symlink the `uv` managed Python version to `~/.local/bin` (which should be at the front of your `PATH`):
+    ```bash
+    ln -sf python3.13 ~/.local/bin/python3
+    ln -sf python3.13 ~/.local/bin/python
     ```

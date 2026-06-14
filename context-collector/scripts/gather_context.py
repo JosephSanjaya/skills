@@ -2,29 +2,68 @@
 """Phase 1 static analysis: scans repo, outputs architecture JSON skeleton."""
 
 import json
-import os
 import re
 import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
 
-
-MANIFEST_PATTERNS = ["build.gradle", "build.gradle.kts", "package.json", "Cargo.toml", "pom.xml", "pyproject.toml", "go.mod"]
-ENTRY_POINT_PATTERNS = ["main.*", "Application.*", "AppDelegate.*", "MainActivity.*", "Program.*", "index.*", "app.*"]
-CONFIG_PATTERNS = ["*.yml", "*.yaml", "Dockerfile", "docker-compose.*", "*.env", "*.properties", "*.toml"]
-IGNORE_DIRS = {".git", "node_modules", "build", ".gradle", "__pycache__", ".idea", "dist", "target", ".build"}
+MANIFEST_PATTERNS = [
+    "build.gradle",
+    "build.gradle.kts",
+    "package.json",
+    "Cargo.toml",
+    "pom.xml",
+    "pyproject.toml",
+    "go.mod",
+]
+ENTRY_POINT_PATTERNS = [
+    "main.*",
+    "Application.*",
+    "AppDelegate.*",
+    "MainActivity.*",
+    "Program.*",
+    "index.*",
+    "app.*",
+]
+CONFIG_PATTERNS = [
+    "*.yml",
+    "*.yaml",
+    "Dockerfile",
+    "docker-compose.*",
+    "*.env",
+    "*.properties",
+    "*.toml",
+]
+IGNORE_DIRS = {
+    ".git",
+    "node_modules",
+    "build",
+    ".gradle",
+    "__pycache__",
+    ".idea",
+    "dist",
+    "target",
+    ".build",
+}
 
 LINE_THRESHOLD = 500
 FUNCTION_THRESHOLD = 50
-FUNCTION_PATTERN = re.compile(r"^\s*(fun |def |func |function |public |private |protected |async function )", re.MULTILINE)
+FUNCTION_PATTERN = re.compile(
+    r"^\s*(fun |def |func |function |public |private |protected |async function )",
+    re.MULTILINE,
+)
 
 # Android/Kotlin-specific entry points
 ANDROID_ENTRY_POINT_PATTERNS = [
-    "Application.kt", "Application.java",
-    "MainActivity.kt", "MainActivity.java",
-    "MainFragment.kt", "MainFragment.java",
-    "NavGraph*.kt", "NavGraph*.xml",
+    "Application.kt",
+    "Application.java",
+    "MainActivity.kt",
+    "MainActivity.java",
+    "MainFragment.kt",
+    "MainFragment.java",
+    "NavGraph*.kt",
+    "NavGraph*.xml",
     "*NavHost*.kt",
     "AppModule.kt",
     "di/*/Module.kt",
@@ -32,9 +71,9 @@ ANDROID_ENTRY_POINT_PATTERNS = [
 
 # Kotlin-specific scary patterns (additional signals)
 KOTLIN_SCARY_PATTERNS = [
-    re.compile(r"@Composable", re.MULTILINE),   # composable density
-    re.compile(r"runBlocking", re.MULTILINE),    # blocking coroutine = smell
-    re.compile(r"GlobalScope", re.MULTILINE),   # leaked coroutine scope
+    re.compile(r"@Composable", re.MULTILINE),  # composable density
+    re.compile(r"runBlocking", re.MULTILINE),  # blocking coroutine = smell
+    re.compile(r"GlobalScope", re.MULTILINE),  # leaked coroutine scope
 ]
 
 
@@ -60,7 +99,7 @@ def find_files_by_pattern(root: Path, pattern: str) -> list[str]:
         for p in root.rglob(pattern):
             if not any(part in IGNORE_DIRS for part in p.parts):
                 results.append(str(p.relative_to(root)))
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     return results
 
@@ -107,26 +146,38 @@ def detect_module_structure(root: Path) -> dict:
     if (root / "settings.gradle").exists() or (root / "settings.gradle.kts").exists():
         structure["build_system"] = "gradle"
         structure["has_settings_gradle"] = True
-        settings_file = root / "settings.gradle.kts" if (root / "settings.gradle.kts").exists() else root / "settings.gradle"
+        settings_file = (
+            root / "settings.gradle.kts"
+            if (root / "settings.gradle.kts").exists()
+            else root / "settings.gradle"
+        )
         try:
             content = settings_file.read_text(errors="ignore")
             modules = re.findall(r'include\s*["\']([^"\']+)["\']', content)
             structure["modules"] = [m.lstrip(":") for m in modules]
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
     elif (root / "package.json").exists():
         structure["build_system"] = "npm"
-        workspace_files = list(root.glob("packages/*/package.json")) + list(root.glob("apps/*/package.json"))
-        structure["modules"] = [str(p.parent.relative_to(root)) for p in workspace_files[:20]]
+        workspace_files = list(root.glob("packages/*/package.json")) + list(
+            root.glob("apps/*/package.json")
+        )
+        structure["modules"] = [
+            str(p.parent.relative_to(root)) for p in workspace_files[:20]
+        ]
 
     elif (root / "Cargo.toml").exists():
         structure["build_system"] = "cargo"
         workspace_members = list(root.glob("*/Cargo.toml"))
-        structure["modules"] = [str(p.parent.relative_to(root)) for p in workspace_members[:20]]
+        structure["modules"] = [
+            str(p.parent.relative_to(root)) for p in workspace_members[:20]
+        ]
 
     if not structure["modules"]:
-        top_dirs = [d.name for d in root.iterdir() if d.is_dir() and d.name not in IGNORE_DIRS]
+        top_dirs = [
+            d.name for d in root.iterdir() if d.is_dir() and d.name not in IGNORE_DIRS
+        ]
         structure["modules"] = sorted(top_dirs)[:15]
 
     return structure
@@ -136,8 +187,18 @@ def find_git_hot_files(root: Path, days: int = 90) -> list[dict]:
     """Files changed most in the last N days — highest volatility, most important to understand."""
     try:
         result = subprocess.run(
-            ["git", "-C", str(root), "log", f"--since={days} days ago", "--name-only", "--format="],
-            capture_output=True, text=True, timeout=10
+            [
+                "git",
+                "-C",
+                str(root),
+                "log",
+                f"--since={days} days ago",
+                "--name-only",
+                "--format=",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode != 0:
             return []
@@ -165,9 +226,13 @@ def find_di_wiring(root: Path, project_type: str) -> list[str]:
                 continue
             try:
                 content = p.read_text(errors="ignore")
-                if "@Module" in content and ("@ComponentScan" in content or "startKoin" in content or "val module = module" in content):
+                if "@Module" in content and (
+                    "@ComponentScan" in content
+                    or "startKoin" in content
+                    or "val module = module" in content
+                ):
                     di_files.append(str(p.relative_to(root)))
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
 
     elif project_type in ("java",):
@@ -178,7 +243,7 @@ def find_di_wiring(root: Path, project_type: str) -> list[str]:
                 content = p.read_text(errors="ignore")
                 if "@Configuration" in content or "@Bean" in content:
                     di_files.append(str(p.relative_to(root)))
-            except Exception:
+            except Exception:  # noqa: S112
                 continue
 
     return sorted(di_files)[:20]
@@ -199,7 +264,6 @@ def find_android_architecture_signals(root: Path) -> dict:
         "layer_structure": [],
     }
 
-    all_kt = list(root.rglob("*.kt"))
     all_gradle = list(root.rglob("*.gradle.kts")) + list(root.rglob("*.gradle"))
 
     for p in all_gradle:
@@ -219,7 +283,7 @@ def find_android_architecture_signals(root: Path) -> dict:
                 signals["has_realm"] = True
             if "navigation" in content.lower():
                 signals["has_navigation_component"] = True
-        except Exception:
+        except Exception:  # noqa: S112
             continue
 
     # Detect journey/capability module naming convention
@@ -236,7 +300,17 @@ def find_android_architecture_signals(root: Path) -> dict:
                     signals["capability_modules"].append(sub.name)
 
     # Detect layer structure from directory naming
-    layer_keywords = {"domain", "data", "presentation", "ui", "remote", "bundle", "repository", "usecase", "network"}
+    layer_keywords = {
+        "domain",
+        "data",
+        "presentation",
+        "ui",
+        "remote",
+        "bundle",
+        "repository",
+        "usecase",
+        "network",
+    }
     found_layers = set()
     for p in root.rglob("*"):
         if p.is_dir() and p.name.lower() in layer_keywords:
@@ -253,7 +327,19 @@ def find_scary_sections(root: Path, project_type: str) -> list[dict]:
             continue
         if any(part in IGNORE_DIRS for part in p.parts):
             continue
-        if p.suffix not in {".kt", ".java", ".py", ".ts", ".tsx", ".js", ".swift", ".go", ".rs", ".cs", ".cpp"}:
+        if p.suffix not in {
+            ".kt",
+            ".java",
+            ".py",
+            ".ts",
+            ".tsx",
+            ".js",
+            ".swift",
+            ".go",
+            ".rs",
+            ".cs",
+            ".cpp",
+        }:
             continue
         try:
             content = p.read_text(errors="ignore")
@@ -277,12 +363,16 @@ def find_scary_sections(root: Path, project_type: str) -> list[dict]:
             if reasons:
                 entry["reasons"] = reasons
                 scary.append(entry)
-        except Exception:
+        except Exception:  # noqa: S112
             continue
 
-    return sorted(scary, key=lambda x: sum(
-        int(r.split("=")[1]) for r in x.get("reasons", []) if "=" in r
-    ), reverse=True)[:20]
+    return sorted(
+        scary,
+        key=lambda x: sum(
+            int(r.split("=")[1]) for r in x.get("reasons", []) if "=" in r
+        ),
+        reverse=True,
+    )[:20]
 
 
 def main():

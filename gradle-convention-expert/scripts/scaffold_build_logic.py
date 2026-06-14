@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-import os
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 PROJECT_EXTENSIONS_CONTENT = """package my.architecture.convention
@@ -81,54 +80,71 @@ dependencies {
 }
 """
 
+
 def scaffold(project_path: Path):
     print(f"Scaffolding composite build-logic structure at: {project_path.resolve()}")
-    
+
     # 1. Validate root project
     root_settings = project_path / "settings.gradle.kts"
     if not root_settings.exists():
         root_settings = project_path / "settings.gradle"
         if not root_settings.exists():
-            print(f"[ERROR] Target directory is not a Gradle root project (no settings.gradle[.kts] found).", file=sys.stderr)
+            print(
+                "[ERROR] Target directory is not a Gradle root project (no settings.gradle[.kts] found).",
+                file=sys.stderr,
+            )
             sys.exit(1)
-            
+
     # 2. Check if build-logic already exists
     build_logic_dir = project_path / "build-logic"
     if build_logic_dir.exists():
-        print(f"[ERROR] build-logic directory already exists. Scaffolding aborted to protect existing configs.", file=sys.stderr)
+        print(
+            "[ERROR] build-logic directory already exists. Scaffolding aborted to protect existing configs.",
+            file=sys.stderr,
+        )
         sys.exit(1)
-        
+
     # 3. Create directories
     convention_kotlin_dir = build_logic_dir / "convention" / "src" / "main" / "kotlin"
     convention_kotlin_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Helper package directory my/architecture/convention
     pkg_dir = convention_kotlin_dir / "my" / "architecture" / "convention"
     pkg_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # 4. Write settings.gradle.kts
     (build_logic_dir / "settings.gradle.kts").write_text(SETTINGS_GRADLE_CONTENT)
     print("[OK] Created build-logic/settings.gradle.kts")
-    
+
     # 5. Write build.gradle.kts for convention subproject
-    (build_logic_dir / "convention" / "build.gradle.kts").write_text(CONVENTION_BUILD_CONTENT)
+    (build_logic_dir / "convention" / "build.gradle.kts").write_text(
+        CONVENTION_BUILD_CONTENT
+    )
     print("[OK] Created build-logic/convention/build.gradle.kts")
-    
+
     # 6. Write ProjectExtensions.kt
     (pkg_dir / "ProjectExtensions.kt").write_text(PROJECT_EXTENSIONS_CONTENT)
     print("[OK] Created build-logic/convention/.../ProjectExtensions.kt")
-    
+
     # 7. Write starter convention plugin
-    (convention_kotlin_dir / "my.android.library.gradle.kts").write_text(STARTER_PLUGIN_CONTENT)
+    (convention_kotlin_dir / "my.android.library.gradle.kts").write_text(
+        STARTER_PLUGIN_CONTENT
+    )
     print("[OK] Created build-logic/convention/.../my.android.library.gradle.kts")
-    
+
     # 8. Wire into root settings
     settings_text = root_settings.read_text()
-    if "includeBuild(\"build-logic\")" not in settings_text and "includeBuild('build-logic')" not in settings_text:
+    if (
+        'includeBuild("build-logic")' not in settings_text
+        and "includeBuild('build-logic')" not in settings_text
+    ):
         # Append includeBuild at the start of pluginManagement or root settings block
         wire_str = '\npluginManagement {\n    includeBuild("build-logic")\n}\n'
         if "pluginManagement {" in settings_text:
-            settings_text = settings_text.replace("pluginManagement {", 'pluginManagement {\n    includeBuild("build-logic")')
+            settings_text = settings_text.replace(
+                "pluginManagement {",
+                'pluginManagement {\n    includeBuild("build-logic")',
+            )
         else:
             settings_text = wire_str + settings_text
         root_settings.write_text(settings_text)
@@ -140,18 +156,35 @@ def scaffold(project_path: Path):
     print("Next steps:")
     print("1. In your root gradle/libs.versions.toml, ensure you have declared:")
     print("   [plugins]")
-    print("   android-gradle-plugin = { id = \"com.android.library\", version = \"9.x.x\" }")
-    print("   # (Note: kotlin-gradle-plugin is only required for legacy AGP 8.x environments)")
-    print("   kotlin-gradle-plugin = { id = \"org.jetbrains.kotlin.android\", version = \"2.x.x\" }")
+    print(
+        '   android-gradle-plugin = { id = "com.android.library", version = "9.x.x" }'
+    )
+    print(
+        "   # (Note: kotlin-gradle-plugin is only required for legacy AGP 8.x environments)"
+    )
+    print(
+        '   kotlin-gradle-plugin = { id = "org.jetbrains.kotlin.android", version = "2.x.x" }'
+    )
     print("   [libraries]")
-    print("   androidx-core-ktx = { group = \"androidx.core\", name = \"core-ktx\", version = \"1.12.0\" }")
+    print(
+        '   androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.12.0" }'
+    )
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Scaffold a composite build-logic layout for Gradle Convention Plugins.")
-    parser.add_argument("project_path", nargs="?", default=".", help="Path to the Gradle root project (default: current directory)")
+    parser = argparse.ArgumentParser(
+        description="Scaffold a composite build-logic layout for Gradle Convention Plugins."
+    )
+    parser.add_argument(
+        "project_path",
+        nargs="?",
+        default=".",
+        help="Path to the Gradle root project (default: current directory)",
+    )
     args = parser.parse_args()
-    
+
     scaffold(Path(args.project_path))
+
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,30 @@
+[project]
+name = "skills"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade (modern syntax upgrade)
+    "S",   # flake8-bandit (security checks)
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "S603",  # subprocess call: check for execution of untrusted input (we invoke platform commands in build/scripts)
+    "S607",  # subprocess call: start process with partial path (safe in local scripts)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

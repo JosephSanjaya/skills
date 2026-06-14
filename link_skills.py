@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+import fnmatch
 import os
-import re
-import sys
 import platform
+import re
 import shutil
 import subprocess
-import fnmatch
+import sys
+
 
 def parse_gitignore(gitignore_path):
     """Parses a .gitignore file and returns a list of (pattern, is_dir) tuples."""
@@ -13,36 +14,37 @@ def parse_gitignore(gitignore_path):
     if not os.path.exists(gitignore_path):
         return patterns
     try:
-        with open(gitignore_path, 'r', encoding='utf-8') as f:
+        with open(gitignore_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
-                is_dir = line.endswith('/')
-                pattern = line.rstrip('/')
+                is_dir = line.endswith("/")
+                pattern = line.rstrip("/")
                 patterns.append((pattern, is_dir))
     except Exception as e:
         print(f"Warning: Failed to read .gitignore: {e}")
     return patterns
 
+
 def is_ignored(path, gitignore_patterns, repo_root):
     """Determines if a given path should be ignored based on common folders and .gitignore patterns."""
     rel_path = os.path.relpath(path, repo_root)
-    if rel_path == '.':
+    if rel_path == ".":
         return False
-        
+
     parts = rel_path.split(os.sep)
-    
+
     # Always ignore system, IDE, and tool-specific directories
-    ignored_names = {'.git', '.github', '.idea', '.DS_Store', 'node_modules'}
+    ignored_names = {".git", ".github", ".idea", ".DS_Store", "node_modules"}
     for part in parts:
         if part in ignored_names:
             return True
-            
+
     # Check against gitignore patterns
     for pattern, is_dir_pattern in gitignore_patterns:
         for i in range(len(parts)):
-            subpath = os.sep.join(parts[:i+1])
+            subpath = os.sep.join(parts[: i + 1])
             # Match either the full relative subpath or the individual part
             if fnmatch.fnmatch(subpath, pattern) or fnmatch.fnmatch(parts[i], pattern):
                 if is_dir_pattern:
@@ -52,54 +54,56 @@ def is_ignored(path, gitignore_patterns, repo_root):
                     return True
     return False
 
+
 def is_template_skill(file_path):
     """
     Checks if a SKILL.md file is a template rather than a concrete skill.
     Identifies template-specific frontmatter or placeholder markers.
     """
     try:
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             content = f.read()
-            
+
         # File is too short to be a real skill
         if len(content.strip()) < 100:
             return True
-            
+
         # Common patterns used for template placeholders
         placeholders = [
-            r'\[\s*skill\s*name\s*\]',
-            r'\[\s*your-skill-name\s*\]',
-            r'<\s*your-skill-name\s*>',
-            r'\[\s*insert\s+[^\]]+\]',
-            r'<\s*insert\s+[^>]+>',
-            r'\[\s*describe\s+[^\]]+\]',
-            r'name:\s*skill-template',
-            r'name:\s*template-skill',
-            r'name:\s*template\b',
+            r"\[\s*skill\s*name\s*\]",
+            r"\[\s*your-skill-name\s*\]",
+            r"<\s*your-skill-name\s*>",
+            r"\[\s*insert\s+[^\]]+\]",
+            r"<\s*insert\s+[^>]+>",
+            r"\[\s*describe\s+[^\]]+\]",
+            r"name:\s*skill-template",
+            r"name:\s*template-skill",
+            r"name:\s*template\b",
         ]
-        
+
         for pattern in placeholders:
             if re.search(pattern, content, re.IGNORECASE):
                 return True
-                
+
         # Look for explicit generic placeholder instructions
         if "[Detailed instructions" in content or "your-skill-name" in content:
             return True
-            
+
         return False
     except Exception as e:
         print(f"Warning: Failed to read {file_path}: {e}")
         return True
 
+
 def get_symlink_name(rel_path):
     """
     Generates a symlink name based on the naming convention:
     android(first section of the first folder)-(secondfolder)-name of skills
-    
+
     Special handling:
     - Skips "skills" subfolder in the path to avoid redundancy
     - Removes duplicate prefix if skill name starts with the same word
-    
+
     Examples:
       android-official-skills/jetpack-compose/adaptive -> android-jetpack-compose-adaptive
       compose-performance-skills/stability/stabilizing-compose-types -> compose-stability-stabilizing-compose-types
@@ -110,30 +114,31 @@ def get_symlink_name(rel_path):
     parts = rel_path.split(os.sep)
     if not parts:
         return ""
-        
+
     if len(parts) == 1:
         return parts[0]
-        
+
     first_folder = parts[0]
-    first_section = first_folder.split('-')[0]
-    
+    first_section = first_folder.split("-")[0]
+
     middle_folders = parts[1:-1]
     # Filter out "skills" subfolder to avoid redundancy
     middle_folders = [folder for folder in middle_folders if folder.lower() != "skills"]
-    
+
     last_folder = parts[-1]
-    
+
     # Check if the last folder starts with the first section
     # If so, don't include the first section to avoid duplication
-    last_folder_parts = last_folder.split('-')
+    last_folder_parts = last_folder.split("-")
     if last_folder_parts[0].lower() == first_section.lower():
         # The skill name already starts with the prefix, skip the first section
         name_parts = middle_folders + [last_folder]
     else:
         # Normal case: include first section
         name_parts = [first_section] + middle_folders + [last_folder]
-    
-    return '-'.join(name_parts)
+
+    return "-".join(name_parts)
+
 
 def remove_link(link_path):
     """Safely removes a link (symlink or junction) on any platform."""
@@ -153,6 +158,7 @@ def remove_link(link_path):
             pass
     return False
 
+
 def create_link(target_abs, link_abs, dry_run=False):
     """
     Creates a directory symlink or Windows directory junction at link_abs pointing to target_abs.
@@ -160,13 +166,13 @@ def create_link(target_abs, link_abs, dry_run=False):
     """
     link_dir = os.path.dirname(link_abs)
     target_rel = os.path.relpath(target_abs, link_dir)
-    
+
     if dry_run:
         return True, "dry-run"
 
     # Remove any existing link/file at the path
     remove_link(link_abs)
-            
+
     try:
         # Standard relative symlink
         os.symlink(target_rel, link_abs, target_is_directory=True)
@@ -175,35 +181,45 @@ def create_link(target_abs, link_abs, dry_run=False):
         # Fallback for Windows if Developer Mode is not enabled (requires absolute path for junction)
         if platform.system() == "Windows":
             try:
-                cmd = ["cmd", "/c", "mklink", "/J", os.path.normpath(link_abs), os.path.normpath(target_abs)]
-                subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                cmd = [
+                    "cmd",
+                    "/c",
+                    "mklink",
+                    "/J",
+                    os.path.normpath(link_abs),
+                    os.path.normpath(target_abs),
+                ]
+                subprocess.run(cmd, check=True, capture_output=True)
                 return True, "junction"
             except (subprocess.CalledProcessError, FileNotFoundError) as e:
                 return False, str(e)
         else:
             return False, "Failed to create symlink"
 
+
 def update_gitignore(repo_root, active_symlinks, dry_run=False):
     """Updates .gitignore file with the list of generated symlinks."""
     gitignore_path = os.path.join(repo_root, ".gitignore")
     start_marker = "# BEGIN GENERATED SKILL SYMLINKS"
     end_marker = "# END GENERATED SKILL SYMLINKS"
-    
+
     content = ""
     if os.path.exists(gitignore_path):
         try:
-            with open(gitignore_path, 'r', encoding='utf-8') as f:
+            with open(gitignore_path, encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
             print(f"Warning: Failed to read .gitignore for updating: {e}")
             return
-            
+
     # Clean up any reference to flat_skills/ since we don't use it anymore
     if "flat_skills/" in content:
         content = content.replace("flat_skills/\n", "").replace("flat_skills/", "")
-        
-    pattern = re.compile(rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}\n?", re.DOTALL)
-    
+
+    pattern = re.compile(
+        rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}\n?", re.DOTALL
+    )
+
     if not active_symlinks:
         # If there are no active symlinks, we remove the block entirely
         if pattern.search(content):
@@ -214,7 +230,7 @@ def update_gitignore(repo_root, active_symlinks, dry_run=False):
         # Prepare the list of symlinks sorted alphabetically
         symlink_lines = [start_marker] + sorted(list(active_symlinks)) + [end_marker]
         symlink_block = "\n".join(symlink_lines) + "\n"
-        
+
         # Check if markers already exist
         if pattern.search(content):
             new_content = pattern.sub(symlink_block, content)
@@ -223,15 +239,17 @@ def update_gitignore(repo_root, active_symlinks, dry_run=False):
             if content and not content.endswith("\n"):
                 content += "\n"
             new_content = content + symlink_block
-            
+
     if dry_run:
         if not active_symlinks:
             print("[DRY-RUN] Would remove generated symlink block from .gitignore.")
         else:
-            print(f"[DRY-RUN] Would update .gitignore with {len(active_symlinks)} symlink entries.")
+            print(
+                f"[DRY-RUN] Would update .gitignore with {len(active_symlinks)} symlink entries."
+            )
     else:
         try:
-            with open(gitignore_path, 'w', encoding='utf-8') as f:
+            with open(gitignore_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
             if not active_symlinks:
                 print("[+] Removed generated symlink block from .gitignore.")
@@ -240,48 +258,52 @@ def update_gitignore(repo_root, active_symlinks, dry_run=False):
         except Exception as e:
             print(f"Error: Failed to write to .gitignore: {e}")
 
+
 def get_concatenated_rules(repo_root):
     """Reads, strips YAML frontmatter, and concatenates the two rule files."""
     rules_dir = os.path.join(repo_root, "rules")
     files = ["code-structure-patterns.md", "readable-code-principles.md"]
     content_parts = []
-    
+
     for filename in files:
         file_path = os.path.join(rules_dir, filename)
         if os.path.exists(file_path):
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding="utf-8") as f:
                     file_content = f.read()
                 # Strip YAML frontmatter if present
-                if file_content.startswith('---'):
-                    parts = file_content.split('---', 2)
+                if file_content.startswith("---"):
+                    parts = file_content.split("---", 2)
                     if len(parts) >= 3:
                         file_content = parts[2].strip()
                 content_parts.append(file_content.strip())
             except Exception as e:
                 print(f"Warning: Failed to read rule file {filename}: {e}")
-                
+
     return "\n\n".join(content_parts)
+
 
 def merge_rules_into_file(file_path, rules_content, dry_run=False):
     """Merges rules_content into file_path wrapped in generated rule markers."""
     start_marker = "<!-- BEGIN GENERATED CODING RULES -->"
     end_marker = "<!-- END GENERATED CODING RULES -->"
-    
+
     # Format the block to inject
     rules_block = f"{start_marker}\n{rules_content}\n{end_marker}"
-    
+
     content = ""
     if os.path.exists(file_path):
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
             print(f"Warning: Failed to read {file_path} for merging rules: {e}")
             return False
-            
-    pattern = re.compile(rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}\n?", re.DOTALL)
-    
+
+    pattern = re.compile(
+        rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}\n?", re.DOTALL
+    )
+
     if pattern.search(content):
         new_content = pattern.sub(rules_block + "\n", content)
     else:
@@ -289,14 +311,14 @@ def merge_rules_into_file(file_path, rules_content, dry_run=False):
         if content and not content.endswith("\n"):
             content += "\n"
         new_content = content + rules_block + "\n"
-        
+
     if dry_run:
         print(f"[DRY-RUN] Would merge rules into file: {file_path}")
         return True
     else:
         try:
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
             print(f"  [✓] Merged rules into: {file_path}")
             return True
@@ -304,28 +326,31 @@ def merge_rules_into_file(file_path, rules_content, dry_run=False):
             print(f"  [!] Failed to merge rules into {file_path}: {e}")
             return False
 
+
 def remove_rules_from_file(file_path, dry_run=False):
     """Removes the generated rules block from file_path."""
     if not os.path.exists(file_path):
         return True
-        
+
     start_marker = "<!-- BEGIN GENERATED CODING RULES -->"
     end_marker = "<!-- END GENERATED CODING RULES -->"
-    
+
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
     except Exception as e:
         print(f"Warning: Failed to read {file_path} for removing rules: {e}")
         return False
-        
-    pattern = re.compile(rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}\n?", re.DOTALL)
-    
+
+    pattern = re.compile(
+        rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}\n?", re.DOTALL
+    )
+
     if not pattern.search(content):
         return True
-        
+
     new_content = pattern.sub("", content)
-    
+
     if dry_run:
         print(f"[DRY-RUN] Would remove rules block from: {file_path}")
         return True
@@ -336,7 +361,7 @@ def remove_rules_from_file(file_path, dry_run=False):
                 os.remove(file_path)
                 print(f"  [-] Removed empty config file: {file_path}")
             else:
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(new_content)
                 print(f"  [-] Removed rules block from: {file_path}")
             return True
@@ -344,35 +369,53 @@ def remove_rules_from_file(file_path, dry_run=False):
             print(f"  [!] Failed to remove rules block from {file_path}: {e}")
             return False
 
+
 def get_agent_paths():
     home = os.path.expanduser("~")
     system = platform.system()
-    
+
     agents_map = {
         "claude code": [os.path.join(home, ".claude", "skills")],
         "gemini": [os.path.join(home, ".gemini", "config", "skills")],
         "antigravity": [
             os.path.join(home, ".agent", "skills"),
-            os.path.join(home, ".agents", "skills")
+            os.path.join(home, ".agents", "skills"),
         ],
         "kilocode": [
-            os.path.join(home, ".kilocode", "globalStorage", "kilo code.kilo-code", "skills"),
+            os.path.join(
+                home, ".kilocode", "globalStorage", "kilo code.kilo-code", "skills"
+            ),
             os.path.join(home, ".kilocode", "skills"),
-            os.path.join(home, ".kilo", "skills")
+            os.path.join(home, ".kilo", "skills"),
         ],
         "opencode": [os.path.join(home, ".opencode", "skills")],
         "qwencode": [
             os.path.join(home, ".qwencode", "skills"),
-            os.path.join(home, ".qwen", "skills")
+            os.path.join(home, ".qwen", "skills"),
         ],
         "aionui": [
-            os.path.join(home, "Library", "Application Support", "AionUi", "config", "skills") if system == "Darwin" else
-            os.path.join(os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming")), "AionUi", "config", "skills") if system == "Windows" else
-            os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.join(home, ".config")), "AionUi", "config", "skills")
+            os.path.join(
+                home, "Library", "Application Support", "AionUi", "config", "skills"
+            )
+            if system == "Darwin"
+            else os.path.join(
+                os.environ.get("APPDATA", os.path.join(home, "AppData", "Roaming")),
+                "AionUi",
+                "config",
+                "skills",
+            )
+            if system == "Windows"
+            else os.path.join(
+                os.environ.get("XDG_CONFIG_HOME", os.path.join(home, ".config")),
+                "AionUi",
+                "config",
+                "skills",
+            )
         ],
-        "kiro": [os.path.join(home, ".kiro", "skills")]
+        "kiro": [os.path.join(home, ".kiro", "skills")],
     }
     return agents_map
+
 
 def interactive_agent_selection(agents, agent_status):
     """
@@ -380,21 +423,22 @@ def interactive_agent_selection(agents, agent_status):
     Returns a list of selected agent names.
     """
     import sys
-    import tty
     import termios
-    
+    import tty
+
     # Check if we're in a TTY (terminal with keyboard input)
     if not sys.stdin.isatty():
         print("Not running in interactive terminal. Using fallback selection.")
         return fallback_agent_selection(agents, agent_status)
-    
+
     selections = {agent: False for agent in agents}
     current_index = 0
-    
+
     def get_char():
         """Read a single character from stdin."""
-        import select
         import os
+        import select
+
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
@@ -403,24 +447,24 @@ def interactive_agent_selection(agents, agent_status):
             char_bytes = os.read(fd, 1)
             if not char_bytes:
                 return ""
-            char = char_bytes.decode('utf-8', errors='ignore')
-            
+            char = char_bytes.decode("utf-8", errors="ignore")
+
             # Handle escape sequences (arrow keys)
-            if char == '\x1b':
+            if char == "\x1b":
                 # Use select on the raw file descriptor to check if more characters are available immediately
                 rlist, _, _ = select.select([fd], [], [], 0.05)
                 if rlist:
                     more_bytes = os.read(fd, 2)
-                    char += more_bytes.decode('utf-8', errors='ignore')
+                    char += more_bytes.decode("utf-8", errors="ignore")
             return char
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    
+
     def display_menu():
         """Display the selection menu."""
         # Clear screen and move cursor to top
-        print("\033[2J\033[H", end='')
-        
+        print("\033[2J\033[H", end="")
+
         print("=" * 60)
         print("Select agents to configure (use arrow keys to navigate):")
         print("=" * 60)
@@ -433,7 +477,7 @@ def interactive_agent_selection(agents, agent_status):
         print("  q or ESC    : Cancel")
         print("=" * 60)
         print()
-        
+
         for i, agent in enumerate(agents):
             status, _ = agent_status[agent]
             checkbox = "[✓]" if selections[agent] else "[ ]"
@@ -441,46 +485,47 @@ def interactive_agent_selection(agents, agent_status):
             highlight = "\033[1;36m" if i == current_index else ""
             reset = "\033[0m" if i == current_index else ""
             print(f"{cursor}{highlight}{checkbox} {agent:<15} ({status}){reset}")
-        
+
         print()
         selected_count = sum(selections.values())
         print(f"Selected: {selected_count} agent(s)")
-    
+
     # Main interaction loop
     try:
         while True:
             display_menu()
-            
+
             char = get_char()
-            
+
             # Handle arrow keys and vim-style navigation
-            if char == '\x1b[A' or char == 'k':  # Up arrow or k
+            if char == "\x1b[A" or char == "k":  # Up arrow or k
                 current_index = (current_index - 1) % len(agents)
-            elif char == '\x1b[B' or char == 'j':  # Down arrow or j
+            elif char == "\x1b[B" or char == "j":  # Down arrow or j
                 current_index = (current_index + 1) % len(agents)
-            elif char == ' ':  # Space - toggle current selection
+            elif char == " ":  # Space - toggle current selection
                 current_agent = agents[current_index]
                 selections[current_agent] = not selections[current_agent]
-            elif char == 'a':  # Select all
+            elif char == "a":  # Select all
                 for agent in agents:
                     selections[agent] = True
-            elif char == 'c':  # Clear all
+            elif char == "c":  # Clear all
                 for agent in agents:
                     selections[agent] = False
-            elif char == '\r' or char == '\n':  # Enter - confirm
+            elif char == "\r" or char == "\n":  # Enter - confirm
                 break
-            elif char == 'q' or char == '\x1b':  # q or ESC - cancel
+            elif char == "q" or char == "\x1b":  # q or ESC - cancel
                 print("\nCancelled.")
                 return []
-            elif char == '\x03':  # Ctrl+C
+            elif char == "\x03":  # Ctrl+C
                 print("\nCancelled.")
                 return []
     except (KeyboardInterrupt, EOFError):
         print("\nCancelled.")
         return []
-    
+
     # Return list of selected agents
     return [agent for agent in agents if selections[agent]]
+
 
 def fallback_agent_selection(agents, agent_status):
     """
@@ -491,18 +536,20 @@ def fallback_agent_selection(agents, agent_status):
     for i, agent in enumerate(agents, 1):
         status, _ = agent_status[agent]
         print(f"  {i}) [ ] {agent:<15} ({status})")
-        
-    print("\nEnter numbers separated by commas (e.g. 1,3,5), 'all' to select all, or press Enter to skip:")
+
+    print(
+        "\nEnter numbers separated by commas (e.g. 1,3,5), 'all' to select all, or press Enter to skip:"
+    )
     try:
         user_input = input("> ").strip().lower()
     except (KeyboardInterrupt, EOFError):
         print("\nSkipping agent links setup.")
         return []
-        
+
     if not user_input:
         print("Skipping agent links setup.")
         return []
-        
+
     selected_indices = []
     if user_input == "all":
         selected_indices = list(range(len(agents)))
@@ -513,41 +560,60 @@ def fallback_agent_selection(agents, agent_status):
                 idx = int(val) - 1
                 if 0 <= idx < len(agents):
                     selected_indices.append(idx)
-                    
+
     if not selected_indices:
         print("No valid agents selected. Skipping.")
         return []
-        
+
     return [agents[idx] for idx in selected_indices]
 
-def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_all=False):
+
+def setup_agent_links(
+    repo_root, all_skill_folders, dry_run=False, auto_select_all=False
+):
     import time
+
     agents_map = get_agent_paths()
-    
+
     print("\n" + "=" * 60)
     print("AI Agent Global Skills Symlink Setup")
     print("=" * 60)
-    print("This utility can link this repository to the global skills directory of your AI agents.")
-    print("When linked, the agent will automatically discover all the skills in this repository.")
+    print(
+        "This utility can link this repository to the global skills directory of your AI agents."
+    )
+    print(
+        "When linked, the agent will automatically discover all the skills in this repository."
+    )
     print("=" * 60)
-    
+
     # For agent installation, include all skill folders except 'cooking'
-    agent_skills = {name: path for name, path in all_skill_folders.items() if name != "cooking"}
-    
+    agent_skills = {
+        name: path for name, path in all_skill_folders.items() if name != "cooking"
+    }
+
     if not dry_run:
         print(f"\nPreparing to copy {len(agent_skills)} skills to agents")
-        print(f"  (Excluding 'cooking' folder if present)")
-        print(f"  Skills will be copied as actual directories")
-    
+        print("  (Excluding 'cooking' folder if present)")
+        print("  Skills will be copied as actual directories")
+
     agent_status = {}
-    ordered_agents = ["claude code", "gemini", "antigravity", "kilocode", "opencode", "qwencode", "aionui", "kiro"]
-    
+    ordered_agents = [
+        "claude code",
+        "gemini",
+        "antigravity",
+        "kilocode",
+        "opencode",
+        "qwencode",
+        "aionui",
+        "kiro",
+    ]
+
     for agent in ordered_agents:
         paths = agents_map.get(agent, [])
         linked_count = 0
         colliding_count = 0
         total_paths_checked = 0
-        
+
         for p in paths:
             if os.path.exists(p) and os.path.isdir(p):
                 total_paths_checked += 1
@@ -557,7 +623,9 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
                         if os.path.islink(skill_path):
                             try:
                                 target = os.readlink(skill_path)
-                                target_abs = os.path.abspath(os.path.join(os.path.dirname(skill_path), target))
+                                target_abs = os.path.abspath(
+                                    os.path.join(os.path.dirname(skill_path), target)
+                                )
                                 # Check if target resolves inside repo_root
                                 if target_abs.startswith(repo_root):
                                     linked_count += 1
@@ -567,7 +635,7 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
                                 colliding_count += 1
                         else:
                             colliding_count += 1
-                            
+
         if total_paths_checked == 0:
             status = "Not Created"
         elif agent_skills and linked_count == len(agent_skills) * total_paths_checked:
@@ -581,49 +649,57 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
             status = f"Partial ({', '.join(parts)})"
         else:
             status = "Exists (Folder)"
-            
+
         agent_status[agent] = (status, paths)
-        
+
     # Agent selection (automatic or interactive)
     if auto_select_all:
-        selected_agents = [agent for agent in ordered_agents if agent_status[agent][0] != "Not Created"]
+        selected_agents = [
+            agent for agent in ordered_agents if agent_status[agent][0] != "Not Created"
+        ]
         print(f"Auto-selected active agents: {', '.join(selected_agents)}")
     else:
         selected_agents = interactive_agent_selection(ordered_agents, agent_status)
-    
+
     if not selected_agents:
         print("No agents selected. Skipping agent links setup.")
         return
-        
+
     print(f"\nYou selected: {', '.join(selected_agents)}")
-    
+
     print("\n" + "!" * 60)
     print("DISCLAIMER / WARNING:")
     print("This operation will symlink the individual skills from this repository")
     print("into the global 'skills' directory of the selected agent(s):")
     print(f"  Target Repository: {repo_root}")
-    print("If any of these skills already exist in the agent's folder, they will be replaced.")
+    print(
+        "If any of these skills already exist in the agent's folder, they will be replaced."
+    )
     print("!" * 60)
-    
+
     if auto_select_all:
         do_backup = True
     else:
         try:
-            backup_input = input("\nDo you want to backup any colliding skill folders into .bak files first? (y/n) [y]: ").strip().lower()
-            do_backup = backup_input != 'n'
+            backup_input = (
+                input(
+                    "\nDo you want to backup any colliding skill folders into .bak files first? (y/n) [y]: "
+                )
+                .strip()
+                .lower()
+            )
+            do_backup = backup_input != "n"
         except (KeyboardInterrupt, EOFError):
             print("\nOperation cancelled.")
             return
-        
+
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    
+
     for agent in selected_agents:
         status, paths = agent_status[agent]
         print(f"\nConfiguring {agent}...")
-        
+
         for p in paths:
-            p_dir = os.path.dirname(p)
-            
             # If the folder itself is a symlink (legacy behavior), remove it and make it a real directory
             if os.path.islink(p):
                 print(f"  [-] Removing legacy agent folder symlink: {p}")
@@ -634,21 +710,27 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
                 print(f"  [+] Creating agent skills folder: {p}")
                 if not dry_run:
                     os.makedirs(p, exist_ok=True)
-            
+
             # Copy each individual skill
             for skill_name, skill_src in agent_skills.items():
                 skill_dest = os.path.join(p, skill_name)
-                
+
                 if os.path.exists(skill_dest) or os.path.islink(skill_dest):
                     # Collision!
-                    print(f"  [!] Collision: Skill '{skill_name}' already exists in {p}")
+                    print(
+                        f"  [!] Collision: Skill '{skill_name}' already exists in {p}"
+                    )
                     if do_backup and not os.path.islink(skill_dest):
                         backup_base = f"{skill_dest}_{timestamp}.bak"
-                        print(f"    [*] Backing up existing skill to {backup_base}.bak...")
+                        print(
+                            f"    [*] Backing up existing skill to {backup_base}.bak..."
+                        )
                         if not dry_run:
                             try:
                                 if os.path.isdir(skill_dest):
-                                    zip_file = shutil.make_archive(backup_base, 'zip', skill_dest)
+                                    zip_file = shutil.make_archive(
+                                        backup_base, "zip", skill_dest
+                                    )
                                     bak_file = backup_base + ".bak"
                                     if os.path.exists(bak_file):
                                         os.remove(bak_file)
@@ -660,9 +742,11 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
                                     print(f"    [+] Backup created: {bak_file}")
                             except Exception as e:
                                 print(f"    [!] Failed to create backup: {e}")
-                                print("    [!] Skipping this skill to prevent data loss.")
+                                print(
+                                    "    [!] Skipping this skill to prevent data loss."
+                                )
                                 continue
-                                
+
                     print(f"    [-] Removing existing skill: {skill_dest}")
                     if not dry_run:
                         try:
@@ -675,16 +759,25 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
                         except Exception as e:
                             print(f"    [!] Failed to remove existing skill: {e}")
                             continue
-                
+
                 # Copy the directory
-                print(f"  [+] Copying: {skill_name} <- {os.path.relpath(skill_src, repo_root)}")
+                print(
+                    f"  [+] Copying: {skill_name} <- {os.path.relpath(skill_src, repo_root)}"
+                )
                 if not dry_run:
                     try:
-                        shutil.copytree(skill_src, skill_dest, symlinks=False, ignore=shutil.ignore_patterns('.git', '.DS_Store', '__pycache__', '*.pyc'))
-                        print(f"    [✓] Copied successfully!")
+                        shutil.copytree(
+                            skill_src,
+                            skill_dest,
+                            symlinks=False,
+                            ignore=shutil.ignore_patterns(
+                                ".git", ".DS_Store", "__pycache__", "*.pyc"
+                            ),
+                        )
+                        print("    [✓] Copied successfully!")
                     except Exception as e:
                         print(f"    [!] Failed to copy: {e}")
-            
+
             # Now install custom rules for this agent path
             home = os.path.expanduser("~")
             agent_single_files = {
@@ -692,16 +785,16 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
                 "gemini": [os.path.join(home, ".gemini", "GEMINI.md")],
                 "antigravity": [os.path.join(home, ".gemini", "GEMINI.md")],
                 "opencode": [os.path.join(home, ".config", "opencode", "AGENTS.md")],
-                "kiro": [os.path.join(home, ".kiro", ".config.kiro")]
+                "kiro": [os.path.join(home, ".kiro", ".config.kiro")],
             }
-            
+
             rules_src_dir = os.path.join(repo_root, "rules")
             rules_dest_dir = os.path.join(os.path.dirname(p), "rules")
-            
+
             print(f"  [+] Creating agent rules folder: {rules_dest_dir}")
             if not dry_run:
                 os.makedirs(rules_dest_dir, exist_ok=True)
-                
+
             rule_files = ["code-structure-patterns.md", "readable-code-principles.md"]
             for rf in rule_files:
                 rf_src = os.path.join(rules_src_dir, rf)
@@ -711,23 +804,24 @@ def setup_agent_links(repo_root, all_skill_folders, dry_run=False, auto_select_a
                     if not dry_run:
                         try:
                             shutil.copy2(rf_src, rf_dest)
-                            print(f"    [✓] Copied rule successfully!")
+                            print("    [✓] Copied rule successfully!")
                         except Exception as e:
                             print(f"    [!] Failed to copy rule: {e}")
-            
+
             # Merge rules into single-file config paths if configured for this agent
             if agent in agent_single_files:
                 rules_content = get_concatenated_rules(repo_root)
                 for sf_path in agent_single_files[agent]:
                     merge_rules_into_file(sf_path, rules_content, dry_run=dry_run)
 
+
 def main():
     # Parse arguments
     dry_run = "--dry-run" in sys.argv or "-d" in sys.argv
     clean_mode = "--clean" in sys.argv or "-c" in sys.argv
-    
+
     repo_root = os.path.abspath(os.path.dirname(__file__))
-    
+
     # Handle clean mode immediately
     if clean_mode:
         print("=" * 60)
@@ -736,7 +830,7 @@ def main():
             print("=" * 60)
         print("Cleaning up all generated symlinks...")
         print("=" * 60)
-        
+
         cleaned_count = 0
         for item in os.listdir(repo_root):
             item_path = os.path.join(repo_root, item)
@@ -744,10 +838,12 @@ def main():
                 try:
                     target = os.readlink(item_path)
                     target_abs = os.path.abspath(os.path.join(repo_root, target))
-                    is_internal = target_abs.startswith(repo_root) and target_abs != repo_root
+                    is_internal = (
+                        target_abs.startswith(repo_root) and target_abs != repo_root
+                    )
                 except OSError:
                     is_internal = False
-                    
+
                 if is_internal:
                     if dry_run:
                         print(f"[DRY-RUN] Would remove symlink: {item}")
@@ -758,7 +854,7 @@ def main():
                             cleaned_count += 1
                         else:
                             print(f"[!] Failed to remove symlink: {item}")
-                            
+
         # Also clean up legacy flat_skills directory if it exists
         legacy_dir = os.path.join(repo_root, "flat_skills")
         if os.path.exists(legacy_dir):
@@ -769,27 +865,35 @@ def main():
                     shutil.rmtree(legacy_dir)
                     print("[+] Removed legacy flat_skills/ directory.")
                 except Exception as e:
-                    print(f"[!] Warning: Failed to remove legacy flat_skills/ directory: {e}")
+                    print(
+                        f"[!] Warning: Failed to remove legacy flat_skills/ directory: {e}"
+                    )
         # Clean up agent symlinks if any
         agents_map = get_agent_paths()
         agent_cleaned_count = 0
-        for agent, paths in agents_map.items():
+        for _, paths in agents_map.items():
             for p in paths:
                 # Check if the folder itself is a symlink pointing to repo_root (legacy compatibility)
                 if os.path.islink(p):
                     try:
                         target = os.readlink(p)
-                        target_abs = os.path.abspath(os.path.join(os.path.dirname(p), target))
+                        target_abs = os.path.abspath(
+                            os.path.join(os.path.dirname(p), target)
+                        )
                         if target_abs == repo_root:
                             if dry_run:
-                                print(f"[DRY-RUN] Would remove agent folder symlink: {p}")
+                                print(
+                                    f"[DRY-RUN] Would remove agent folder symlink: {p}"
+                                )
                                 agent_cleaned_count += 1
                             else:
                                 if remove_link(p):
                                     print(f"[x] Removed agent folder symlink: {p}")
                                     agent_cleaned_count += 1
                                 else:
-                                    print(f"[!] Failed to remove agent folder symlink: {p}")
+                                    print(
+                                        f"[!] Failed to remove agent folder symlink: {p}"
+                                    )
                     except OSError:
                         pass
                 # Otherwise, if it's a directory, clean up individual skill symlinks inside it
@@ -803,17 +907,23 @@ def main():
                                 # Use case-insensitive comparison for macOS compatibility
                                 if target_abs.lower().startswith(repo_root.lower()):
                                     if dry_run:
-                                        print(f"[DRY-RUN] Would remove agent skill symlink: {item_path}")
+                                        print(
+                                            f"[DRY-RUN] Would remove agent skill symlink: {item_path}"
+                                        )
                                         agent_cleaned_count += 1
                                     else:
                                         if remove_link(item_path):
-                                            print(f"[x] Removed agent skill symlink: {item_path}")
+                                            print(
+                                                f"[x] Removed agent skill symlink: {item_path}"
+                                            )
                                             agent_cleaned_count += 1
                                         else:
-                                            print(f"[!] Failed to remove agent skill symlink: {item_path}")
+                                            print(
+                                                f"[!] Failed to remove agent skill symlink: {item_path}"
+                                            )
                     except Exception as e:
                         print(f"[!] Error scanning {p} for cleanup: {e}")
-                        
+
         # Clean up agent rules if any
         home = os.path.expanduser("~")
         agent_single_files = {
@@ -821,21 +931,26 @@ def main():
             "gemini": [os.path.join(home, ".gemini", "GEMINI.md")],
             "antigravity": [os.path.join(home, ".gemini", "GEMINI.md")],
             "opencode": [os.path.join(home, ".config", "opencode", "AGENTS.md")],
-            "kiro": [os.path.join(home, ".kiro", ".config.kiro")]
+            "kiro": [os.path.join(home, ".kiro", ".config.kiro")],
         }
-        
+
         rules_cleaned_count = 0
         for agent, paths in agents_map.items():
             for p in paths:
                 # 1. Clean up rules inside derived rules_dir
                 rules_dir = os.path.join(os.path.dirname(p), "rules")
                 if os.path.exists(rules_dir) and os.path.isdir(rules_dir):
-                    rule_files = ["code-structure-patterns.md", "readable-code-principles.md"]
+                    rule_files = [
+                        "code-structure-patterns.md",
+                        "readable-code-principles.md",
+                    ]
                     for rf in rule_files:
                         rf_path = os.path.join(rules_dir, rf)
                         if os.path.exists(rf_path):
                             if dry_run:
-                                print(f"[DRY-RUN] Would remove agent rule file: {rf_path}")
+                                print(
+                                    f"[DRY-RUN] Would remove agent rule file: {rf_path}"
+                                )
                                 rules_cleaned_count += 1
                             else:
                                 try:
@@ -843,15 +958,21 @@ def main():
                                     print(f"[x] Removed agent rule file: {rf_path}")
                                     rules_cleaned_count += 1
                                 except Exception as e:
-                                    print(f"[!] Failed to remove agent rule file {rf_path}: {e}")
+                                    print(
+                                        f"[!] Failed to remove agent rule file {rf_path}: {e}"
+                                    )
                     # If rules_dir is now empty, remove it too
-                    if not dry_run and os.path.exists(rules_dir) and not os.listdir(rules_dir):
+                    if (
+                        not dry_run
+                        and os.path.exists(rules_dir)
+                        and not os.listdir(rules_dir)
+                    ):
                         try:
                             os.rmdir(rules_dir)
                             print(f"[-] Removed empty rules folder: {rules_dir}")
-                        except Exception as e:
+                        except OSError:  # noqa: S110
                             pass
-                            
+
             # 2. Clean up rules in single-file configs
             if agent in agent_single_files:
                 for sf_path in agent_single_files[agent]:
@@ -862,9 +983,9 @@ def main():
                         else:
                             if remove_rules_from_file(sf_path, dry_run=False):
                                 rules_cleaned_count += 1
-                                
+
         update_gitignore(repo_root, set(), dry_run=dry_run)
-        
+
         print("=" * 60)
         print("Cleanup Summary:")
         if dry_run:
@@ -877,57 +998,58 @@ def main():
             print(f"  Agent rules cleaned:   {rules_cleaned_count}")
         print("=" * 60)
         sys.exit(0)
-        
+
     # Read .gitignore patterns
     gitignore_path = os.path.join(repo_root, ".gitignore")
     gitignore_patterns = parse_gitignore(gitignore_path)
-    
+
     print("=" * 60)
     if dry_run:
         print("RUNNING IN DRY-RUN MODE (No changes will be written)")
         print("=" * 60)
     print("Scanning repository for skills...")
     print("=" * 60)
-    
+
     # Scan for all SKILL.md files
     skills_found = []
     for root, dirs, files in os.walk(repo_root):
         # Filter dirs in-place to avoid traversing ignored directories and existing symlinks
         dirs[:] = [
-            d for d in dirs 
-            if not os.path.islink(os.path.join(root, d)) 
+            d
+            for d in dirs
+            if not os.path.islink(os.path.join(root, d))
             and not is_ignored(os.path.join(root, d), gitignore_patterns, repo_root)
         ]
-        
+
         for file in files:
             if file.upper() == "SKILL.MD":
                 file_path = os.path.join(root, file)
                 parent_dir = os.path.dirname(file_path)
-                
+
                 # Check if this file itself is in an ignored folder
                 if is_ignored(parent_dir, gitignore_patterns, repo_root):
                     continue
-                    
+
                 skills_found.append((parent_dir, file_path))
-                
+
     if not skills_found:
         print("No SKILL.md files found in the project.")
         sys.exit(0)
-        
+
     print(f"Found {len(skills_found)} SKILL.md file(s). Evaluating...")
-    
+
     all_skill_folders = {}  # Map skill name to source path
     templates_skipped = 0
-    
+
     for skill_dir, skill_file in skills_found:
         rel_skill_dir = os.path.relpath(skill_dir, repo_root)
-        
+
         # Check if it's a template
         if is_template_skill(skill_file):
             print(f"[-] Skipping template: {rel_skill_dir}")
             templates_skipped += 1
             continue
-            
+
         # Determine skill name
         path_parts = rel_skill_dir.split(os.sep)
         if len(path_parts) == 1:
@@ -936,27 +1058,32 @@ def main():
         else:
             # Nested skill - generate flattened name
             skill_name = get_symlink_name(rel_skill_dir)
-        
+
         if not skill_name:
             continue
-            
+
         all_skill_folders[skill_name] = skill_dir
         print(f"[✓] Found skill: {skill_name} ({rel_skill_dir})")
-    
+
     print("=" * 60)
     print("Scan Summary:")
     print(f"  Total SKILL.md found:  {len(skills_found)}")
     print(f"  Templates skipped:     {templates_skipped}")
     print(f"  Valid skills:          {len(all_skill_folders)}")
     print(f"\n  Skills available for agent installation: {len(all_skill_folders)}")
-    print(f"  (All skills except 'cooking')")
+    print("  (All skills except 'cooking')")
     print("=" * 60)
 
     # Prompt user to link global agent skill directories if running interactively
-    if sys.stdin.isatty() and not ("--non-interactive" in sys.argv or "--yes" in sys.argv):
+    if sys.stdin.isatty() and not (
+        "--non-interactive" in sys.argv or "--yes" in sys.argv
+    ):
         setup_agent_links(repo_root, all_skill_folders, dry_run=dry_run)
     elif "--yes" in sys.argv or "--non-interactive" in sys.argv:
-        setup_agent_links(repo_root, all_skill_folders, dry_run=dry_run, auto_select_all=True)
+        setup_agent_links(
+            repo_root, all_skill_folders, dry_run=dry_run, auto_select_all=True
+        )
+
 
 if __name__ == "__main__":
     main()

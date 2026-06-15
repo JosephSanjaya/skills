@@ -86,8 +86,46 @@ Record and replay user sessions:
 ```kotlin
 import com.amplitude.android.plugins.SessionReplayPlugin
 
-val sessionReplayPlugin = SessionReplayPlugin(sampleRate = 1.0)
+val sessionReplayPlugin = SessionReplayPlugin(
+    sampleRate = 1.0, // default 0.0
+    maskLevel = "medium" // "light", "medium" (default), or "conservative"
+)
 amplitude.add(sessionReplayPlugin)
 ```
-- Custom sampling: set `sampleRate` (e.g. `0.05` for 5% of sessions).
+
+### Privacy & Masking Controls
+
+#### Local Configuration (Mask Levels)
+- `light`: Masks sensitive fields (passwords, emails, phone numbers, web views, maps).
+- `medium`: Masks all editable text inputs, web views, maps.
+- `conservative`: Masks all text views, web views, maps.
+
+#### Layout XML Attributes
+Control masking declaratively in Android layout files:
+```xml
+<!-- Unmask specific text input or web view -->
+<EditText amp-unmask="true" />
+
+<!-- Obscure text within non-input elements -->
+<TextView amp-mask="true" />
+
+<!-- Replace non-text element with solid placeholder -->
+<ImageView amp-block="true" />
+```
+
+#### Programmatic SDK Methods
+Control masking at runtime:
+```kotlin
+import com.amplitude.android.SessionReplay
+
+// Mask text in a specific view as asterisks
+SessionReplay.mask(myView)
+
+// Unmask a specific view
+SessionReplay.unmask(myView)
+
+// Block a view (replace with solid placeholder)
+SessionReplay.block(myView)
+```
+
 

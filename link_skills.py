@@ -571,8 +571,6 @@ def fallback_agent_selection(agents, agent_status):
 def setup_agent_links(
     repo_root, all_skill_folders, dry_run=False, auto_select_all=False
 ):
-    import time
-
     agents_map = get_agent_paths()
 
     print("\n" + "=" * 60)
@@ -677,24 +675,6 @@ def setup_agent_links(
     )
     print("!" * 60)
 
-    if auto_select_all:
-        do_backup = True
-    else:
-        try:
-            backup_input = (
-                input(
-                    "\nDo you want to backup any colliding skill folders into .bak files first? (y/n) [y]: "
-                )
-                .strip()
-                .lower()
-            )
-            do_backup = backup_input != "n"
-        except (KeyboardInterrupt, EOFError):
-            print("\nOperation cancelled.")
-            return
-
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-
     for agent in selected_agents:
         status, paths = agent_status[agent]
         print(f"\nConfiguring {agent}...")
@@ -720,33 +700,6 @@ def setup_agent_links(
                     print(
                         f"  [!] Collision: Skill '{skill_name}' already exists in {p}"
                     )
-                    if do_backup and not os.path.islink(skill_dest):
-                        backup_base = f"{skill_dest}_{timestamp}.bak"
-                        print(
-                            f"    [*] Backing up existing skill to {backup_base}.bak..."
-                        )
-                        if not dry_run:
-                            try:
-                                if os.path.isdir(skill_dest):
-                                    zip_file = shutil.make_archive(
-                                        backup_base, "zip", skill_dest
-                                    )
-                                    bak_file = backup_base + ".bak"
-                                    if os.path.exists(bak_file):
-                                        os.remove(bak_file)
-                                    os.rename(zip_file, bak_file)
-                                    print(f"    [+] Backup created: {bak_file}")
-                                else:
-                                    bak_file = backup_base + ".bak"
-                                    shutil.copy2(skill_dest, bak_file)
-                                    print(f"    [+] Backup created: {bak_file}")
-                            except Exception as e:
-                                print(f"    [!] Failed to create backup: {e}")
-                                print(
-                                    "    [!] Skipping this skill to prevent data loss."
-                                )
-                                continue
-
                     print(f"    [-] Removing existing skill: {skill_dest}")
                     if not dry_run:
                         try:

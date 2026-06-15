@@ -1,69 +1,143 @@
-# Compose Lifecycle & Invalidation for Shaders
+# Jetpack Compose Integration & Lifecycle
 
-Properly integrating AGSL shaders in Jetpack Compose requires hooking into the correct phases of Compose (Composition, Layout, Draw) to maximize performance and ensure smooth animation.
+Guidelines for performant shader integration, avoiding recomposition, caching shaders, and multiplatform expect/actual abstractions.
 
-## 1. Triggering Frame-by-Frame Draw Invalidations
+## 1. ShaderBrush vs RenderEffect
 
-Shaders that animate over time (using a `uTime` uniform) must trigger a redraw at the device's native refresh rate (60Hz, 90Hz, 120Hz).
+*   **ShaderBrush:** Applied directly to drawing commands (`drawRect`, `drawPath`) in a `Canvas` or `drawBehind` modifier. Ideal for procedural backgrounds/patterns. Low overhead.
+*   **RenderEffect:** Applied via `Modifier.graphicsLayer { renderEffect = ... }`. Applies post-processing to the entire composable and its children. Requires an offscreen buffer (higher memory and GPU cost).
 
-*   **Continuous Animation Loop:** Use `withInfiniteAnimationFrameMillis` inside a `LaunchedEffect` to update a `timeState` float value:
-    ```kotlin
-    val timeState = remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) {
-        val startTime = System.currentTimeMillis()
-        while (true) {
-            withInfiniteAnimationFrameMillis { frameTime ->
-                timeState.floatValue = (frameTime - startTime) / 1000f
-            }
-        }
-    }
-    ```
-*   **State-driven Redraws:** Read the `timeState.floatValue` inside the `drawBehind` or `drawWithCache` block. Because Compose tracks state reads inside the Draw phase, updating `timeState` will only dirty the draw phase, forcing a redraw *without* triggering recomposition or relayout.
+## 2. Preventing Recomposition (Deferred Reads)
 
-## 2. drawBehind vs drawWithCache
+Setting time or touch uniforms at 60/120fps by reading state directly in the Composable function body will trigger full recomposition, ruining performance. 
 
-Choose the correct modifier based on resource allocation:
-
-*   **Use `drawBehind`:** For stateless drawing operations where no large memory allocations occur. Reading animating states here is extremely lightweight.
-*   **Use `drawWithCache`:** If you need to allocate objects that depend on the container's layout size (e.g. creating custom gradients, allocating intermediate buffers, or recreating sub-brushes). This caches the created resources until the size changes.
-
-## 3. Shader and Brush Lifecycle Cache
-
-To prevent frame drops, allocate and compile the `RuntimeShader` exactly once and cache the brush:
+*   **Deferred Pattern:** Read animated states only inside the lambda blocks of modifiers (such as `graphicsLayer { ... }` or `drawWithCache { ... }`). This bypasses the composition/layout phases, executing only in the drawing phase.
 
 ```kotlin
-@Composable
-fun InteractiveShaderContainer(modifier: Modifier = Modifier) {
-    val timeState = remember { mutableFloatStateOf(0f) }
+// INCORRECT (Triggers 60fps recompositions):
+val time by animateFloatAsState(...)
+Box(modifier = Modifier.drawBehind {
+    shader.setFloatUniform("uTime", time) // State read in Composable body!
+    drawRect(brush)
+})
+
+// CORRECT (Zero recompositions, draw-phase execution only):
+val timeState = remember { mutableFloatStateOf(0f) }
+Box(modifier = Modifier.drawWithCache {
+    val shader = RuntimeShader(SHADER_SRC)
+    val brush = ShaderBrush(shader)
+    onDrawBehind {
+        // Read state inside DrawScope lambda
+        shader.setFloatUniform("uTime", timeState.floatValue) 
+        drawRect(brush)
+    }
+})
+```
+
+## 3. Shader Caching in `drawWithCache`
+
+Always create shaders and brushes inside `drawWithCache`. This preserves instances across frames, avoiding per-frame memory allocation and compilation lag.
+
+```kotlin
+Modifier.drawWithCache {
+    // Cache shader creation
+    val shader = RuntimeShader(SHADER_SRC)
+    val brush = ShaderBrush(shader)
     
-    // 1. Compile shader ONCE
-    val shader = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            RuntimeShader(SHADER_SOURCE)
-        } else {
-            null
+    // Set static uniforms
+    shader.setFloatUniform("uResolution", size.width, size.height)
+    
+    onDrawBehind {
+        // Apply dynamic uniforms and draw
+        shader.setFloatUniform("uTime", elapsedTime)
+        drawRect(brush)
+    }
+}
+```
+
+## 4. Advanced: Custom `Modifier.Node` Pattern
+
+For complex UI components (e.g., design systems, backdrop blur containers), implement a custom `Modifier.Node` to cache `GraphicsLayer` and update uniforms without recomposition by utilizing `ObserverModifierNode` and `observeReads`.
+
+```kotlin
+class ShaderEffectNode(
+    var shaderSrc: String,
+    var timeState: () -> Float
+) : Modifier.Node(), DrawModifierNode, ObserverModifierNode {
+
+    private var graphicsLayer: GraphicsLayer? = null
+    private var shader: RuntimeShader? = null
+
+    override fun onAttach() {
+        val context = requireGraphicsContext()
+        graphicsLayer = context.createGraphicsLayer()
+        shader = RuntimeShader(shaderSrc)
+        observeShader()
+    }
+
+    override fun onDetach() {
+        graphicsLayer?.let { layer ->
+            requireGraphicsContext().releaseGraphicsLayer(layer)
+            graphicsLayer = null
+        }
+        shader = null
+    }
+
+    override fun onObservedReadsChanged() {
+        observeShader()
+    }
+
+    private fun observeShader() {
+        observeReads {
+            val s = shader ?: return@observeReads
+            val layer = graphicsLayer ?: return@observeReads
+            
+            // Set dynamic uniforms
+            s.setFloatUniform("uTime", timeState())
+            
+            // Apply RenderEffect directly to GraphicsLayer
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                layer.renderEffect = RenderEffect.createRuntimeShaderEffect(s, "content").asComposeRenderEffect()
+            }
         }
     }
 
-    // 2. Cache the brush
-    val shaderBrush = remember(shader) {
-        shader?.let { ShaderBrush(it) }
+    override fun ContentDrawScope.draw() {
+        val layer = graphicsLayer ?: return
+        recordLayer(layer) {
+            drawContent()
+        }
+        drawLayer(layer)
     }
+}
+```
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .drawBehind {
-                val time = timeState.floatValue
-                if (shader != null && shaderBrush != null) {
-                    // 3. Set uniforms on each draw frame
-                    shader.setFloatUniform("resolution", size.width, size.height)
-                    shader.setFloatUniform("uTime", time)
-                    
-                    // 4. Draw using cached brush
-                    drawRect(shaderBrush)
-                }
-            }
-    )
+## 5. Compose Multiplatform expect/actual Abstraction
+
+Abstract the shader builder to support multiple platforms (Android AGSL `RuntimeShader` vs Desktop/iOS Skia `RuntimeEffect`).
+
+```kotlin
+// commonMain
+expect class CommonRuntimeShader(sksl: String) {
+    fun setFloatUniform(name: String, value1: Float)
+    fun setFloatUniform(name: String, value1: Float, value2: Float)
+    fun buildBrush(): Brush
+}
+
+// androidMain
+actual class CommonRuntimeShader actual constructor(sksl: String) {
+    private val shader = RuntimeShader(sksl)
+    actual fun setFloatUniform(name: String, value1: Float) { shader.setFloatUniform(name, value1) }
+    actual fun setFloatUniform(name: String, value1: Float, value2: Float) { shader.setFloatUniform(name, value1, value2) }
+    actual fun buildBrush(): Brush = ShaderBrush(shader)
+}
+
+// skiaMain (desktopMain/iosMain)
+actual class CommonRuntimeShader actual constructor(sksl: String) {
+    private val effect = org.jetbrains.skia.RuntimeEffect.makeForShader(sksl)
+    private val builder = org.jetbrains.skia.RuntimeShaderBuilder(effect)
+    actual fun setFloatUniform(name: String, value1: Float) { builder.uniform(name, value1) }
+    actual fun setFloatUniform(name: String, value1: Float, value2: Float) { builder.uniform(name, value1, value2) }
+    actual fun buildBrush(): Brush = ShaderBrush(builder.makeShader())
 }
 ```

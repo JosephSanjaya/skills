@@ -1,42 +1,62 @@
-# GPU Performance Optimization in AGSL
+# Mobile GPU Shader Optimization
 
-Mobile GPUs use Tile-Based Deferred Rendering (TBDR). To achieve 60fps/120fps, shaders must be optimized to minimize registers, texture fetches, and branching.
+Guidelines for writing branchless, low-precision, and bandwidth-efficient shaders for mobile GPUs (Adreno, Mali).
 
-## 1. Minimizing Register Pressure & Thread Divergence
+## 1. Branching Avoidance (Branchless Math)
 
-Mobile fragment shaders run across thousands of hardware threads organized in warps/SIMD groups.
+Mobile GPUs (Tile-Based Deferred Renderers) execute code in SIMD warp groups. If fragments in a warp choose different branches, the GPU executes both branches and masks out the unselected pixels. This doubles instruction cycles.
 
-*   **Avoid Loops in Fragment Shaders:** 
-    Loops (e.g., iterating over 20+ particles) force compilers to allocate temporary registers. If registers exceed the GPU hardware limits, the GPU spills variables to slower memory, causing dramatic framerate drops.
-*   **Hybrid Rendering Pattern:**
-    Never render complex particle systems, floating blobs, or multiple independent shapes in a shader loop. Instead:
-    1. Render the main continuous fluid/fluid-warp background using an AGSL shader.
-    2. Overlay discrete shapes (like twinkling stars or particles) on top using standard Compose Canvas `drawCircle` or `drawPoints` calls. This runs on the GPU's hardware drawing path (batching vertex buffers) and has virtually zero CPU/GPU overhead.
+*   **Rule:** Replace conditional `if-else` blocks with mathematical equivalents.
 
-*   **Branchless Programming:**
-    Avoid `if-else` branching on non-constant conditions. SIMD threads execute both branches if they diverge, wasting GPU cycles.
-    *   *Bad:*
-        ```glsl
-        if (dist < 0.4) {
-            color = green;
-        } else {
-            color = blue;
-        }
-        ```
-    *   *Good (Branchless):*
-        ```glsl
-        color = mix(green, blue, step(0.4, dist));
-        ```
+```glsl
+// INCORRECT (Triggers branching):
+half4 color;
+if (dist < uRadius) {
+    color = uInnerColor;
+} else {
+    color = uOuterColor;
+}
 
-## 2. Mathematical Optimization Checklist
+// CORRECT (Branchless math):
+float edge = step(uRadius, dist);
+half4 color = mix(uInnerColor, uOuterColor, edge);
+```
 
-*   **Avoid complex functions:** Use `pow()` and `exp()` sparingly.
-*   **Precision Selection:** Use `half` (16-bit float) instead of `float` (32-bit float) for colors, gradients, and normals to save GPU register files and power. Use `float` only for coordinate mapping or high-precision accumulators (like noise hash constants).
-*   **Vector Operations:** Perform calculations in vector chunks (e.g., `float4` or `float2`) rather than scalar components when possible.
+### Common Branchless Replacements
 
-## 3. Shader Warmup and Caching
+*   **Select value based on comparison:** Use `step(a, b)` or `smoothstep(a, b, x)`.
+*   **Clamp range:** Use `clamp(x, minVal, maxVal)` instead of checking boundaries.
+*   **Conditional color mixing:** Use `mix(colorA, colorB, step(threshold, value))`.
 
-RuntimeShader compilation occurs at runtime on the CPU, causing a noticeable frame drop ("shader jank") the first time it is drawn.
+## 2. Precision Management & Register Pressure
 
-*   **Pre-compilation:** Initialize the `RuntimeShader` instance during layout/creation or in a `remember` block, not inside the frame-by-frame `onDrawBehind` rendering call.
-*   **Stateless Brush Allocation:** Cache the `ShaderBrush` using `remember(shader)` to avoid creating a new Brush on every frame draw.
+Register pressure dictates how many threads can run in parallel on a GPU core. Using 32-bit `float` variables everywhere consumes twice the register space of 16-bit `half` variables, cutting GPU concurrency in half.
+
+*   **Rule:** Default to `half` for all colors, lighting calculations, and texture values. Use `float` only for coordinates, matrices, and time uniforms.
+
+| Variable | Precision | Rationale |
+| :--- | :--- | :--- |
+| **Coordinates (`uv`, `fragCoord`)** | `float`, `float2` | `half` coordinates cause visual jittering and banding. |
+| **Time (`uTime`)** | `float` | `half` precision degrades over time, causing animations to stutter. |
+| **Colors (`color`, `tint`)** | `half`, `half4` | `half` is indistinguishable from `float` for 8-bit color outputs. |
+| **Normal vectors** | `half3` | 16-bit float is sufficient for surface vectors. |
+
+## 3. Discarding and Early-Z Testing
+
+Avoid using the `discard` keyword. Modern GPUs use Early-Z rejection to skip fragment execution for occluded pixels. Using `discard` forces the GPU to run the shader to determine if a pixel exists, disabling Early-Z and causing high overdraw.
+
+*   **Rule:** Return transparent black `half4(0.0)` instead of `discard`, or use alpha blending to render nothing.
+
+## 4. Bandwidth Limits & Texture Fetches
+
+Texture fetches (calls to `.eval()`) move data from memory to registers, which is a common bottleneck on mobile.
+
+*   **Rule:** Keep the number of calls to `.eval()` below 5 per pass.
+*   **Texture Packing:** Pack unrelated values (e.g., noise intensity, roughness, displacement values) into separate channels (R, G, B, A) of a single input image/texture instead of using multiple textures.
+*   **Avoid High tap kernels:** Instead of calculating a 17-tap Gaussian blur in AGSL (which requires 17 evaluations), perform the blur using Android's native `RenderEffect.createBlurEffect`, then pass the blurred output to your AGSL shader for refraction/frosting.
+
+## 5. Shader Warm-Up (Compilation Spike)
+
+Shaders are compiled dynamically by the GPU driver when first drawn, which can take up to 80ms, causing noticeable frame drops (jank).
+
+*   **Rule:** Pre-compile/warm up shaders by drawing them offscreen or on a 1x1 pixel layout during app startup or during navigation transitions before they are displayed.

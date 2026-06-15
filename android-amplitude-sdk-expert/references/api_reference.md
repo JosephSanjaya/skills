@@ -101,17 +101,33 @@ amplitude.add(sessionReplayPlugin)
 - `conservative`: Masks all text views, web views, maps.
 
 #### Layout XML Attributes
-Control masking declaratively in Android layout files:
+Control masking declaratively in Android layout XML files using `android:tag` properties:
 ```xml
 <!-- Unmask specific text input or web view -->
-<EditText amp-unmask="true" />
+<EditText
+    android:id="@+id/input_email"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:tag="amp-unmask" />
 
 <!-- Obscure text within non-input elements -->
-<TextView amp-mask="true" />
+<TextView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:tag="amp-mask" />
 
 <!-- Replace non-text element with solid placeholder -->
-<ImageView amp-block="true" />
+<ImageView
+    android:layout_width="100dp"
+    android:layout_height="100dp"
+    android:tag="amp-block" />
 ```
+
+#### Jetpack Compose Masking
+- **No Custom Modifier**: Amplitude Kotlin SDK does NOT provide custom Compose `Modifier` functions (e.g. no `Modifier.ampMask()`).
+- **Control Strategy**:
+  1. Configure global `maskLevel` (e.g. `"medium"` or `"conservative"`) in `SessionReplayPlugin` initialization.
+  2. Configure **Masking Overrides** directly in the Amplitude web dashboard (Session Replay settings screen) using component selectors to target specific Composables.
 
 #### Programmatic SDK Methods
 Control masking at runtime:
@@ -127,5 +143,6 @@ SessionReplay.unmask(myView)
 // Block a view (replace with solid placeholder)
 SessionReplay.block(myView)
 ```
+
 
 

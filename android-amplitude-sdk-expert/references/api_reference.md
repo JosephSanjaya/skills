@@ -80,68 +80,142 @@ Types:
 
 ## 5. Session Replay
 
-Record and replay user sessions:
-1. Add dependency: `implementation("com.amplitude:plugin-session-replay-android:<version>")`
-2. Initialize and register plugin:
+Three integration paths — pick by SDK type:
+
+| Scenario | Artifact | Approach |
+|---|---|---|
+| Modern Kotlin SDK (`analytics-android`) | `plugin-session-replay-android` | Plugin (recommended) |
+| Legacy/maintenance SDK (`android-sdk`) | `middleware-session-replay-android` | Middleware |
+| Third-party analytics (no Amplitude SDK) | `session-replay-android` | Standalone |
+
+---
+
+### 5a. Plugin (Modern Kotlin SDK — recommended)
+
 ```kotlin
+// build.gradle.kts
+implementation("com.amplitude:plugin-session-replay-android:<version>")
+implementation("com.amplitude:analytics-android:[1.16.7, 2.0.0]")
+```
+
+```kotlin
+import com.amplitude.android.Amplitude
+import com.amplitude.android.Configuration
 import com.amplitude.android.plugins.SessionReplayPlugin
 
+val amplitude = Amplitude(Configuration(apiKey = API_KEY, context = applicationContext))
+
 val sessionReplayPlugin = SessionReplayPlugin(
-    sampleRate = 1.0, // default 0.0
-    maskLevel = "medium" // "light", "medium" (default), or "conservative"
+    sampleRate = 0.5,            // 0.0 (off) to 1.0 (all sessions). Default: 0.0
+    maskLevel = "medium",        // "light" | "medium" (default) | "conservative"
+    enableRemoteConfig = true,   // pull mask config from Amplitude dashboard. Default: true
 )
 amplitude.add(sessionReplayPlugin)
 ```
 
+**`SessionReplayPlugin` params:**
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `sampleRate` | `Double` | `0.0` | Fraction of sessions to capture. `1.0` = all. |
+| `maskLevel` | `String` | `"medium"` | Global privacy mask level. |
+| `enableRemoteConfig` | `Boolean` | `true` | Override local mask config from dashboard. |
+| `recordLogOptions.logCountThreshold` | `Int` | `1000` | Max log entries per session. |
+| `recordLogOptions.maxMessageLength` | `Int` | `2000` | Max chars per log message. |
+
+---
+
+### 5b. Middleware (Legacy/Maintenance SDK)
+
+```kotlin
+// build.gradle.kts
+implementation("com.amplitude:middleware-session-replay-android:<version>")
+implementation("com.amplitude:android-sdk:[2.40.1,3.0.0]")
+```
+
+```kotlin
+import com.amplitude.api.Amplitude
+import com.amplitude.api.SessionReplayMiddleware
+
+val amplitude = Amplitude.getInstance()
+    .initialize(this, AMPLITUDE_API_KEY)
+    .setFlushEventsOnClose(true)
+
+val sessionReplayMiddleware = SessionReplayMiddleware(amplitude, sampleRate = 1.0)
+amplitude.addEventMiddleware(sessionReplayMiddleware)
+
+// Always flush before app exits or goes to background
+override fun onPause() {
+    super.onPause()
+    sessionReplayMiddleware.flush()
+}
+```
+
+---
+
+### 5c. Standalone SDK (Third-party analytics)
+
+```kotlin
+// build.gradle.kts
+implementation("com.amplitude:session-replay-android:<version>")
+```
+
+```kotlin
+import com.amplitude.android.sessionreplay.SessionReplay
+
+val sessionReplay = SessionReplay(
+    apiKey = "api-key",
+    context = applicationContext,
+    deviceId = "device-id",
+    sessionId = Date().time,
+    sampleRate = 1.0,
+)
+
+// Sync IDs whenever your analytics SDK changes them
+sessionReplay.setSessionId(thirdPartyAnalytics.getSessionId())
+sessionReplay.setDeviceId(thirdPartyAnalytics.getDeviceId())
+
+// Always flush before app exits or goes to background
+override fun onPause() {
+    super.onPause()
+    sessionReplay.flush()
+}
+```
+
+---
+
 ### Privacy & Masking Controls
 
-#### Local Configuration (Mask Levels)
-- `light`: Masks sensitive fields (passwords, emails, phone numbers, web views, maps).
-- `medium`: Masks all editable text inputs, web views, maps.
+#### Mask Levels
+- `light`: Masks passwords, emails, phone numbers, web views, maps.
+- `medium`: Masks all editable text inputs, web views, maps. *(default)*
 - `conservative`: Masks all text views, web views, maps.
 
-#### Layout XML Attributes
-Control masking declaratively in Android layout XML files using `android:tag` properties:
+#### Layout XML Attributes (`android:tag`)
 ```xml
-<!-- Unmask specific text input or web view -->
-<EditText
-    android:id="@+id/input_email"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:tag="amp-unmask" />
+<!-- Unmask a specific input or web view -->
+<EditText android:tag="amp-unmask" ... />
 
-<!-- Obscure text within non-input elements -->
-<TextView
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:tag="amp-mask" />
+<!-- Mask text in a non-input element -->
+<TextView android:tag="amp-mask" ... />
 
-<!-- Replace non-text element with solid placeholder -->
-<ImageView
-    android:layout_width="100dp"
-    android:layout_height="100dp"
-    android:tag="amp-block" />
+<!-- Replace element with solid placeholder -->
+<ImageView android:tag="amp-block" ... />
 ```
 
 #### Jetpack Compose Masking
-- **No Custom Modifier**: Amplitude Kotlin SDK does NOT provide custom Compose `Modifier` functions (e.g. no `Modifier.ampMask()`).
-- **Control Strategy**:
-  1. Configure global `maskLevel` (e.g. `"medium"` or `"conservative"`) in `SessionReplayPlugin` initialization.
-  2. Configure **Masking Overrides** directly in the Amplitude web dashboard (Session Replay settings screen) using component selectors to target specific Composables.
+- **No custom `Modifier`** — SDK does not provide `Modifier.ampMask()` or similar.
+- Strategy:
+  1. Set global `maskLevel` in `SessionReplayPlugin` (e.g. `"conservative"`).
+  2. Override per-component via Amplitude dashboard → Session Replay settings → component selectors.
 
-#### Programmatic SDK Methods
-Control masking at runtime:
+#### Programmatic Masking (View-level)
 ```kotlin
 import com.amplitude.android.SessionReplay
 
-// Mask text in a specific view as asterisks
-SessionReplay.mask(myView)
-
-// Unmask a specific view
-SessionReplay.unmask(myView)
-
-// Block a view (replace with solid placeholder)
-SessionReplay.block(myView)
+SessionReplay.mask(myView)    // obscure text as asterisks
+SessionReplay.unmask(myView)  // remove masking
+SessionReplay.block(myView)   // replace with solid placeholder
 ```
 
 

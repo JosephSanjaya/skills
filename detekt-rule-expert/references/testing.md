@@ -27,6 +27,22 @@ class MyCustomRuleTest {
 }
 ```
 
+## 1a. Autocorrect Testing Pitfalls
+
+**Entity anchor must survive mutation.** When the rule deletes or moves the reported element, reading `findings.first().entity.ktElement?.containingFile?.text` returns `null` or the pre-mutation text. Use a stable parent as the entity anchor (see `autocorrect.md §3a`).
+
+**Substring matching in fixed text.** `indexOf("val name")` matches inside `const val name`. Always use a more specific substring, e.g. `indexOf("val name =")` to avoid false positives.
+
+```kotlin
+// Wrong — matches "const val name" too
+val nameIndex = fixed.indexOf("val name")
+
+// Correct — unique to non-const property
+val nameIndex = fixed.indexOf("val name =")
+```
+
+**Node copy for move operations.** Use `element.copy()` not `factory.createProperty(element.text)` to clone PSI nodes with modifiers intact (see `autocorrect.md §3b`).
+
 ## 2. Type Resolution Rules (With Context)
 Requires injecting the compiler environment container to build type symbols.
 - **Detekt 1.x**: Annotate the class with `@KotlinCoreEnvironmentTest` and inject a `KotlinCoreEnvironment` parameter.
@@ -53,3 +69,14 @@ class MyTypeRuleTest(private val env: KotlinEnvironmentContainer) {
     }
 }
 ```
+
+---
+
+## Quick Reference: Testing Pitfalls
+
+| Pitfall | Wrong | Correct |
+|---|---|---|
+| Entity on deleted element | `findings.first().entity.ktElement?.containingFile` returns null | Anchor entity to stable parent; read file text via that node |
+| Substring match in fixed text | `indexOf("val name")` matches `const val name` | `indexOf("val name =")` — include `=` to narrow match |
+| Autocorrect config | `Config.empty` — autocorrect never fires | `TestConfig("autoCorrect" to true)` |
+| Type resolution without context | `rule.lint(code)` — no type info | `rule.lintWithContext(env, code)` with `@KotlinCoreEnvironmentTest` |

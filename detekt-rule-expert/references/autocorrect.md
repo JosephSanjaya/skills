@@ -50,6 +50,62 @@ Key points:
 - Mutate the **whitespace node between siblings**, not the element itself.
 - `substringAfterLast('\n')` preserves existing indentation level.
 
+## 3a. Entity Anchoring — Critical for Move/Delete Autocorrect
+
+When autocorrect **moves or deletes** the reported element, `entity.ktElement?.containingFile?.text` returns `null` or stale text in tests — the element is detached from the PSI tree.
+
+**Rule:** Always anchor `Entity.from()` to a **stable parent** that survives the mutation (e.g., the containing class, function, or file), not to the element being moved/deleted.
+
+```kotlin
+// Wrong — entity.ktElement is deleted during withAutoCorrect; containingFile becomes null
+report(CodeSmell(issue, Entity.from(movedElement), "..."))
+
+// Correct — classOrObject survives the mutation
+report(CodeSmell(issue, Entity.from(classOrObject), "Constant must be at top."))
+withAutoCorrect {
+    moveConstantsToTop(classOrObject)  // deletes movedElement
+}
+```
+
+In tests, reading `findings.first().entity.ktElement?.containingFile?.text` after `lint()` works only when the entity's `ktElement` is still attached to the PSI tree.
+
+## 3b. Node Copy for Move Operations
+
+`KtPsiFactory.createProperty(text)` fails for `const val` with modifiers — the text is not a valid standalone property declaration without its modifier context.
+
+**Use `.copy()` to clone the PSI node exactly before deleting the original:**
+
+```kotlin
+// Wrong — createProperty() strips const modifier
+classBody.addBefore(factory.createProperty(constant.text), anchor)
+
+// Correct — .copy() produces an exact structural clone
+classBody.addBefore(constant.copy(), anchor)
+```
+
+`.copy()` works on any `PsiElement` and preserves all PSI structure including modifiers.
+
+## 3c. addBefore Insertion Order for Multiple Nodes
+
+`classBody.addBefore(node, anchor)` inserts immediately before `anchor` each time. To preserve original declaration order when moving multiple nodes:
+
+```kotlin
+// Preserves order: LIMIT inserted before anchor, then TAG inserted before anchor
+// Result: ...[LIMIT][TAG][anchor]...
+for (constant in misplacedConstants) {        // forward iteration
+    classBody.addBefore(constant.copy(), anchor)
+    classBody.addBefore(factory.createWhiteSpace("\n$indentation"), anchor)
+}
+
+// Then delete originals in a separate pass (avoid ConcurrentModification)
+for (constant in misplacedConstants) {
+    (constant.prevSibling as? PsiWhiteSpace)?.delete()
+    constant.delete()
+}
+```
+
+Do **not** use `reversed()` — it reverses insertion order relative to anchor.
+
 ## 4. Implementation Pattern (Detekt 2.x)
 
 ```kotlin
@@ -222,3 +278,15 @@ Baseline and autocorrect operate at **different layers** — they do not communi
 - Baseline runs in the **reporting phase** — filters which findings cause CI failure.
 
 A finding suppressed by baseline still triggers `withAutoCorrect {}`. There is no way in Detekt 1.x to skip autocorrect for baselined items. Use `@Suppress("RuleName")` at call sites to suppress both.
+
+---
+
+## Quick Reference: Autocorrect Pitfalls
+
+| Pitfall | Wrong | Correct |
+|---|---|---|
+| Entity on deleted element | `Entity.from(deletedNode)` → `containingFile` null after move | `Entity.from(stableParent)` (class/function/file) |
+| Copy node with modifiers | `factory.createProperty(node.text)` strips `const` | `node.copy()` preserves all PSI structure |
+| Multi-node insertion order | `reversed()` + `addBefore` → wrong order | forward iteration + `addBefore(anchor)` |
+| Delete while iterating | mutate list during `forEach` → ConcurrentModification | collect nodes first, delete in separate pass |
+| PSI import path | `import com.intellij.psi.PsiWhiteSpace` → unresolved | `import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace` |

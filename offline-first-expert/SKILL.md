@@ -30,8 +30,12 @@ Use Store5 for KMP-wide caching, sync, conflict logic. Keep architecture clean: 
 - **NEVER** leak `Store`, `StoreReadResponse`, or `StoreWriteRequest` to UI. Wrap in Repository.
 - **NEVER** return empty collections from SourceOfTruth reader when absent; return `null` → trigger Fetcher.
 - **NEVER** combine `expireAfterWrite` and `expireAfterAccess` in MemoryPolicy builder; throws error.
+- **NEVER** call `awaitComplete()` in Turbine unit tests for Store streams; they are infinite.
 - **ALWAYS** return observable `Flow` from SourceOfTruth reader. One-shot flow breaks reactivity.
 - **ALWAYS** implement TTL validator + 0-20% jitter to prevent thundering herd.
+- **ALWAYS** catch `CancellationException` first and rethrow it when catching exceptions in Fetcher builders.
+- **ALWAYS** target the final output (Domain/Output) type in the Store5 `Validator`, not the local DB entity type.
+- **ALWAYS** use `StoreReadRequest.localOnly(key)` for offline-only configurations.
 </boundaries>
 
 ## 3. Store5 Features & Niche Rules

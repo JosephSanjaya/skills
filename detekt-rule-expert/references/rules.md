@@ -123,6 +123,69 @@ Create a text file containing the fully-qualified class name of your `RuleSetPro
 
 ---
 
+## 3b. `valueOrDefault` Must Be Called After `issue` Is Initialized
+
+`valueOrDefault(key, default)` calls `ruleId`, which reads `issue.getId()`. If invoked before `issue` is set (e.g., as a property initializer), it throws `NullPointerException`:
+
+```
+NullPointerException: Cannot invoke "Issue.getId()" because getIssue() is null
+```
+
+**Rule:** always wrap `valueOrDefault` calls in `by lazy {}`:
+
+```kotlin
+// Wrong — evaluated before issue is set
+private val threshold = valueOrDefault("threshold", 10)
+
+// Correct — deferred until first use, after issue is initialized
+private val threshold by lazy { valueOrDefault("threshold", 10) }
+```
+
+This applies to all config reads: strings, ints, booleans, and lists.
+
+---
+
+## 3c. Reading List Config Values
+
+`valueOrDefault` accepts a typed default. For list config keys, pass an empty typed list:
+
+```kotlin
+// detekt-config.yml
+// my-ruleset:
+//   MyRule:
+//     sourcePaths:
+//       - path/to/file1.kt
+//       - path/to/file2.kt
+
+private val sourcePaths by lazy { valueOrDefault("sourcePaths", emptyList<String>()) }
+```
+
+In `TestConfig`, pass an actual `List<String>`:
+
+```kotlin
+TestConfig("sourcePaths" to listOf("path/to/file1.kt", "path/to/file2.kt"))
+```
+
+---
+
+## 3d. `associate` Takes Last Match — Use `putIfAbsent` for First-Wins
+
+When building a map from regex matches where multiple entries share the same key (e.g., several `val foo = 16.dp` properties), Kotlin's `associate {}` keeps the **last** match. Use `putIfAbsent` to keep the **first**:
+
+```kotlin
+// Wrong — last 16.dp property wins (e.g., cornerRadiusCard instead of standardPadding)
+return matches.associate { it.groupValues[2] to it.groupValues[1] }
+
+// Correct — first occurrence wins (value type here is String; use your own value type as needed)
+val seen = mutableSetOf<String>()
+val result = mutableMapOf<String, String>()
+matches
+    .filter { seen.add(it.groupValues[2]) }
+    .forEach { result.putIfAbsent(it.groupValues[2], it.groupValues[1]) }
+```
+
+---
+
 ## 4. Other Guide References
 
 For advanced topics, refer to the following dedicated manuals:

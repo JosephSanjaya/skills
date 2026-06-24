@@ -290,3 +290,60 @@ A finding suppressed by baseline still triggers `withAutoCorrect {}`. There is n
 | Multi-node insertion order | `reversed()` + `addBefore` → wrong order | forward iteration + `addBefore(anchor)` |
 | Delete while iterating | mutate list during `forEach` → ConcurrentModification | collect nodes first, delete in separate pass |
 | PSI import path | `import com.intellij.psi.PsiWhiteSpace` → unresolved | `import org.jetbrains.kotlin.com.intellij.psi.PsiWhiteSpace` |
+
+---
+
+## 8. Entity Location vs ktElement Split (Replace Autocorrect)
+
+When autocorrect **replaces** (not moves/deletes) the reported node, `entity.ktElement` survives in the tree but the location points to the parent's start line, not the actual violation. The finding is clickable but jumps to the wrong line (e.g., `@Composable` annotation instead of the hardcoded `.dp` expression).
+
+**Pattern:** anchor `Entity.from()` to a stable parent, then override `location` with the actual violation node:
+
+```kotlin
+import io.gitlab.arturbosch.detekt.api.Location
+
+val containingFunction = findContainingFunction(expression) ?: return
+val entity = Entity.from(containingFunction).copy(location = Location.from(expression))
+report(CodeSmell(issue, entity, message))
+
+withAutoCorrect {
+    // expression.replace(...) mutates the tree but containingFunction stays attached
+    expression.replace(factory.createExpression(replacement))
+}
+```
+
+- `entity.ktElement` → `containingFunction` (survives replace, so `containingFile.text` works in tests)
+- `entity.location` → `expression` (correct file:line:col shown in detekt report and IDE click)
+
+**Why `Entity.from(expression)` alone breaks tests:** after `expression.replace(...)`, the original `expression` node is detached from the PSI tree. Reading `entity.ktElement?.containingFile` returns `null`, so `containingFile.text` yields an empty string and autocorrect assertions fail.
+
+---
+
+## 9. Inline Reified Functions — Anonymous Class Danger in Detekt JARs
+
+`filterIsInstance<KtNamedFunction>()` and similar inline reified stdlib extensions produce an anonymous inner class `$inlined$filterIsInstance$1` at the **call site** during Kotlin compilation. When the rule is packaged as a JAR and loaded by detekt's Worker classloader (process isolation), this anonymous class is absent from the classpath:
+
+```
+NoClassDefFoundError: com/example/MyRule$myFun$$inlined$filterIsInstance$1
+```
+
+**Rule: never use inline reified functions in detekt rule code.** Replace with explicit loops:
+
+```kotlin
+// Wrong — inline reified → anonymous class → NoClassDefFoundError at runtime
+val composable = parents.filterIsInstance<KtNamedFunction>().first()
+
+// Correct — explicit while loop, no anonymous class generated
+private fun findContainingFunction(element: KtDotQualifiedExpression): KtNamedFunction? {
+    var current = element.parent
+    while (current != null) {
+        if (current is KtNamedFunction) return current
+        current = current.parent
+    }
+    return null
+}
+```
+
+Affected stdlib functions (all inline reified): `filterIsInstance<T>()`, `firstIsInstanceOrNull<T>()`, any sequence operator with a reified type parameter. Safe alternative: explicit `while` / `for` loop with `is` check.
+
+**Gradle daemon caches the stale classloader.** After rebuilding the JAR, run `./gradlew --stop` to force daemon restart. `--rerun-tasks` alone re-executes the task but the daemon Worker still holds the old class definitions.

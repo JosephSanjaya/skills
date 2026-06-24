@@ -110,7 +110,48 @@ val apiKeyProvider = providers.environmentVariable("API_KEY")
 
 ---
 
-## 4. Secrets Caching Warning
+## 4. `onlyIf` Lambda in `.gradle.kts` Breaks Configuration Cache
+
+An `onlyIf { }` block written directly inside a `.gradle.kts` precompiled script plugin captures an implicit reference to the script object itself. Gradle cannot serialize script object references → CC entry is discarded every run.
+
+### Anti-Pattern: `onlyIf` in `.gradle.kts`
+```kotlin
+// tool.detekt-autoformat.gradle.kts
+tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAutoFormatDiff") {
+    onlyIf("No Kotlin files") { changedKotlinFiles.get().isNotEmpty() }
+    // ERROR: cannot serialize Gradle script object references
+}
+```
+
+### Correct Pattern: Use `@SkipWhenEmpty` Instead
+
+`Detekt` (and all `SourceTask` subclasses) annotate `getSource()` with `@SkipWhenEmpty`. Gradle automatically skips the task when the source set is empty — **no `onlyIf` needed**.
+
+```kotlin
+tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAutoFormatDiff") {
+    setSource(layout.files(changedKotlinFiles))
+    // @SkipWhenEmpty on getSource() handles the empty-source skip automatically
+    // no onlyIf needed — and no CC violation
+}
+```
+
+If you genuinely need `onlyIf` in a `.gradle.kts` script, move the predicate into a `ValueSource` or a `buildSrc` class so there is no script object captured:
+
+```kotlin
+// buildSrc — no script object leak
+abstract class HasFilesSpec : ValueSource<Boolean, HasFilesSpec.Params> {
+    interface Params : ValueSourceParameters { val files: ListProperty<String> }
+    override fun obtain() = parameters.files.get().isNotEmpty()
+}
+
+// in .gradle.kts
+val hasFiles = providers.of(HasFilesSpec::class) { parameters.files.set(changedKotlinFiles) }
+tasks.named<Detekt>("detektAutoFormatDiff") { onlyIf { hasFiles.get() } }
+```
+
+---
+
+## 5. Secrets Caching Warning
 
 > [!WARNING]
 > Because Gradle serializes task inputs and the execution graph to `.gradle/configuration-cache/`, any secrets passed to tasks via properties or env vars will be written to disk in plain text inside the configuration cache folder.

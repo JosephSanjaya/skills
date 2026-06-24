@@ -347,3 +347,38 @@ private fun findContainingFunction(element: KtDotQualifiedExpression): KtNamedFu
 Affected stdlib functions (all inline reified): `filterIsInstance<T>()`, `firstIsInstanceOrNull<T>()`, any sequence operator with a reified type parameter. Safe alternative: explicit `while` / `for` loop with `is` check.
 
 **Gradle daemon caches the stale classloader.** After rebuilding the JAR, run `./gradlew --stop` to force daemon restart. `--rerun-tasks` alone re-executes the task but the daemon Worker still holds the old class definitions.
+
+---
+
+## 10. Custom Rules Must Be Declared in Every Detekt Task's `detektPlugins`
+
+The `detektPlugins` dependency configuration is **per-task-set**, not global. A custom rule JAR added to `detektPlugins` in one convention plugin (e.g. `tool.detekt`) is **not** automatically available in other Detekt tasks registered separately (e.g. `detektAutoFormatDiff` in `tool.detekt-autoformat`).
+
+Each Gradle plugin that registers Detekt tasks must independently declare `detektPlugins` with the custom rule JAR.
+
+### Anti-Pattern: Custom Rules Missing in Autoformat Plugin
+```kotlin
+// tool.detekt.gradle.kts — custom rules declared here
+dependencies {
+    detektPlugins(libs.findLibrary("detekt-formatting").get())
+    detektPlugins(project(":config:quality:detekt:rules")) // ← present
+}
+
+// tool.detekt-autoformat.gradle.kts — missing custom rules
+dependencies {
+    detektPlugins(libs.findLibrary("detekt-formatting").get())
+    // project(":config:quality:detekt:rules") NOT declared
+    // → autoformat tasks silently skip all custom rules
+}
+```
+
+### Correct Pattern: Declare in Both Plugins
+```kotlin
+// tool.detekt-autoformat.gradle.kts
+dependencies {
+    detektPlugins(libs.flatMap { it.findLibrary("detekt-formatting") }.get())
+    detektPlugins(project(":config:quality:detekt:rules")) // must be explicit
+}
+```
+
+**Symptom of missing declaration:** `detektAutoFormatDiff` runs without flagging violations that the normal `detekt` task would catch. No error is thrown — custom rules are silently absent.

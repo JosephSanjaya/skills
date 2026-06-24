@@ -84,23 +84,48 @@ abstract val apk: RegularFileProperty
 
 ---
 
-## 5. `SourceTask.source()` and Double Input Registration
+## 5. `SourceTask.source()` vs `setSource()` — Additive vs Replace
 
-Tasks that extend `SourceTask` (including `io.gitlab.arturbosch.detekt.Detekt`) already register their source files as `@InputFiles` via the `source()` method. Calling `inputs.files()` on the same provider is redundant and creates duplicate tracking.
+`SourceTask` has two distinct APIs:
 
-### Anti-Pattern: Double Registration
+| Method | Behaviour |
+|---|---|
+| `source(x)` | **Additive** — appends to the existing source set |
+| `setSource(x)` | **Replaces** the entire source set |
+
+When Detekt registers built-in tasks (e.g. via `DetektPlain` for the `"detekt"` task), it calls `setSource(extension.source)` with the default project source tree. However, even for **custom registered** `Detekt` tasks, using `source(myFiles)` when `myFiles` is a `Provider<List<String>>` can silently produce an empty or broken source set — causing Detekt to fall back to scanning the entire project directory (its CLI default when `--input` receives nothing valid).
+
+**Always use `setSource()` when you want only a specific file subset.** `source()` is for additive cases (e.g. appending an extra source set to a task that already has a valid source configured).
+
+### Anti-Pattern: `source()` Adds to Default Source
 ```kotlin
 tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAutoFormat") {
-    source(changedKotlinFiles)
-    inputs.files(changedKotlinFiles) // REDUNDANT — source() already tracks this
+    source(changedKotlinFiles) // WRONG — appends to whatever source is already set
+    // result: entire project + changedKotlinFiles gets scanned
 }
 ```
 
-### Correct Pattern: Single Registration via `source()`
+### Correct Pattern: `setSource()` Replaces
 ```kotlin
 tasks.register<io.gitlab.arturbosch.detekt.Detekt>("detektAutoFormat") {
-    source(changedKotlinFiles) // sufficient — SourceTask registers as @InputFiles internally
+    setSource(layout.files(changedKotlinFiles)) // replaces — only diff files scanned
 }
+```
+
+### Provider<List<String>> — Must Use `layout.files()`
+
+`SourceTask.setSource(Any)` and `ConfigurableFileCollection.from(Provider<T>)` do **not** lazily expand `Provider<List<String>>` — Gradle treats the `List` as a single opaque value, not as multiple file paths. The result is an empty or broken source set, causing Detekt to fall back to the default project directory (scanning everything).
+
+Use `layout.files(provider)` — it correctly expands `Provider<Iterable<String>>` lazily:
+
+```kotlin
+// WRONG — Provider<List<String>> not expanded, source resolves to empty/broken
+setSource(changedKotlinFiles)
+setSource(files(changedKotlinFiles))
+setSource(objects.fileCollection().from(changedKotlinFiles))
+
+// CORRECT — layout.files() lazily expands Provider<Iterable<String>> to FileCollection
+setSource(layout.files(changedKotlinFiles))
 ```
 
 This applies to any task that extends `SourceTask`: `JavaCompile`, `Detekt`, `Checkstyle`, `SpotBugs`, etc.

@@ -1,6 +1,6 @@
 ---
 name: detekt-rule-expert
-description: Expert guide for custom Detekt rules (1.x/2.0) & Jetpack Compose quality checks. Use when creating custom Detekt rules, writing AST/PSI visitors, configuring detekt.yml, managing Kotlin type resolution (Analysis API), or enforcing Compose performance/state hoisting.
+description: Expert guide for custom Detekt rules (1.x/2.0) & Jetpack Compose quality checks. Use when creating custom Detekt rules, writing AST/PSI visitors, configuring detekt.yml, managing Kotlin type resolution (Analysis API), or enforcing Compose performance/state hoisting. Also trigger when custom rules are silently not applied in a detektAutoFormatDiff or autoformat task, when detektPlugins is missing from a separately-registered Detekt task or convention plugin, or when a custom rule JAR works in the normal detekt task but not in a scoped autoformat task.
 ---
 
 # Detekt Rule Expert
@@ -35,6 +35,8 @@ Direct user to write compile-safe, high-performance Detekt rules. Target AST/PSI
 | "Register custom scoped Detekt task (autoCorrect on git diff or branch commits)" | [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md) §6 |
 | "Config cache error with custom Detekt task on Gradle 9+" | [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md) §6 |
 | "source() / setSource() ignored inside doFirst" | [config.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/config.md) §6 |
+| "Custom rules not applied in detektAutoFormatDiff / autoformat task" | [autocorrect.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/autocorrect.md) §10 |
+| "detektPlugins missing in separate Detekt plugin / autoformat task" | [autocorrect.md](file:///Users/jsanjaya/.gemini/config/skills/detekt-rule-expert/references/autocorrect.md) §10 |
 | "Verify custom rules project structure and dependency scopes" | See Automation Scripts below |
 
 ---

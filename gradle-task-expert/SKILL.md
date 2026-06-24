@@ -1,6 +1,6 @@
 ---
 name: gradle-task-expert
-description: Expert guidance for authoring and configuring Gradle tasks using Groovy DSL and Kotlin DSL (KTS) for Gradle 9.5.1 with Configuration Cache, up-to-date checks, and input/output modeling. Make sure to use this skill whenever the user asks about registering Gradle tasks, configuring task actions, resolving configuration cache violations, migrating from eager to lazy task APIs, declaring inputs/outputs with properties and providers, or setting up task dependency/ordering relationships, even if they don't explicitly name 'gradle-task-expert'.
+description: Expert guidance for authoring and configuring Gradle tasks using Groovy DSL and Kotlin DSL (KTS) for Gradle 9.5.1 with Configuration Cache, up-to-date checks, and input/output modeling. Use this skill whenever the user asks about registering Gradle tasks, configuring task actions, resolving configuration cache violations, migrating from eager to lazy task APIs, declaring inputs/outputs with properties and providers, or setting up task dependency/ordering relationships. Also trigger for symptoms like a Detekt or SourceTask scanning the whole project instead of a specific file subset, source() vs setSource() confusion, Provider<List<String>> not expanding correctly in setSource() or files(), onlyIf lambda causing "cannot serialize Gradle script object references" in a .gradle.kts precompiled plugin, or any question about @SkipWhenEmpty as an alternative to onlyIf on SourceTask subclasses.
 ---
 
 # Gradle Task Expert
@@ -70,6 +70,8 @@ Do not use legacy eager APIs (`tasks.create()`, `tasks.all`, `tasks.getByName()`
 | "Task output is not cacheable" or "How to define inputs and outputs" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
 | "Kotlin getter annotations not picked up" or "Missing task properties" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
 | "`source()` and `inputs.files()` both declared on same Detekt/SourceTask" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
+| "Detekt autoformat task scans whole project instead of diff files" or "`source()` vs `setSource()` on Detekt task" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
+| "`Provider<List<String>>` not expanding in `setSource()` or `files()`" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
 | "Side effects in `onlyIf`" or "mkdirs / writeText inside onlyIf" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
 | "`val rootDir` shadowing or `val projectDir` shadows Project extension" | [inputs-outputs.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/inputs-outputs.md) |
 | "How to run command in task action for configuration cache" | [configuration-cache.md](file:///Users/jsanjaya/.gemini/config/skills/gradle-task-expert/references/configuration-cache.md) |

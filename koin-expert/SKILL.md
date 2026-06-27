@@ -91,4 +91,6 @@ Provide design, configuration, and debugging assistance for Koin dependency inje
 - Always write Kotlin DSL build scripts and Kotlin source code inside complete code blocks.
 - Explicitly check for compiler plugin `compileSafety` options when diagnosing dependency issues.
 - All reference files and linked documentation must be referenced using their absolute file:/// paths under `/Users/jsanjaya/.gemini/config/skills/koin-expert/references/`.
+- For infrastructure core modules (`:core:*:impl`), use `internal object` annotated with `@Module` + `@ComponentScan`; never expose DI bindings via public classes. See [multi-module.md](file:///Users/jsanjaya/.gemini/config/skills/koin-expert/references/multi-module.md).
+- For platform-specific bindings in KMP, always use `expect/actual` functions annotated `@Single` \u2014 never use runtime `if`-platform guards inside a shared provider. See [multi-module.md](file:///Users/jsanjaya/.gemini/config/skills/koin-expert/references/multi-module.md).
 </constraints>

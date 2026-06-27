@@ -88,7 +88,39 @@ val testModule = module {
     single<NetworkModule> { FakeNetworkModule() }
 }
 
-startKoin { 
-    modules(AppModule.module(), testModule) 
-}
+## Core Module DI Pattern (`:core:*:impl`)
+
+For infrastructure core modules (not features) that must remain `internal` and never expose implementation details, use an `internal object` annotated with `@Module` and `@ComponentScan`:
+
+```kotlin
+// core/network/impl/src/commonMain/kotlin/core/network/impl/di/NetworkModule.kt
+package core.network.impl.di
+
+import org.koin.core.annotation.ComponentScan
+import org.koin.core.annotation.Module
+
+@Module
+@ComponentScan("core.network.impl")
+internal object NetworkModule
 ```
+
+Individual providers (e.g., `HttpClient`, `Ktorfit`) are `@Single`-annotated `internal` functions inside the same package, automatically scanned by `@ComponentScan`.
+
+### Platform-Specific Engine Overrides via `expect/actual`
+
+Use `expect/actual` for platform engine providers rather than raw `if (platform == Android)` checks:
+```kotlin
+// commonMain
+@Single
+internal expect fun providePlatformEngine(): HttpClientEngine
+
+// androidMain
+@Single
+internal actual fun providePlatformEngine(): HttpClientEngine = OkHttp.create()
+
+// iosMain
+@Single
+internal actual fun providePlatformEngine(): HttpClientEngine = Darwin.create()
+```
+
+This is the preferred KMP pattern — keeps the Koin graph unified while keeping platform code in the correct source sets.

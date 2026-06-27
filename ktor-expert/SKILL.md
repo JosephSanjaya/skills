@@ -14,7 +14,7 @@ Delineate Ktor references, enforce client engine selection guidelines, apply tok
 Use these references for specific Ktor domains:
 - Client architecture, engine selection, connection pool tuning, OAuth2 token refresh, certificate pinning: read [client.md](file:///Users/jsanjaya/.gemini/config/skills/ktor-expert/references/client.md)
 - Server setup, Netty tuning, first-party DI, HTMX, typed config mapping, request lifecycle cancellation: read [server.md](file:///Users/jsanjaya/.gemini/config/skills/ktor-expert/references/server.md)
-- Testing (MockEngine, testApplication, DI overrides, parallel DB isolation): read [testing.md](file:///Users/jsanjaya/.gemini/config/skills/ktor-expert/references/testing.md)
+- Testing (MockEngine, testApplication, DI overrides, parallel DB isolation, KMP Bearer Auth pitfalls): read [testing.md](file:///Users/jsanjaya/.gemini/config/skills/ktor-expert/references/testing.md)
 
 ## Core Guidelines (Terse)
 
@@ -28,6 +28,8 @@ Use these references for specific Ktor domains:
 ### Token Refresh
 - Use `Auth` plugin with `bearer` flow. Single-flight refresh is built-in.
 - Wrap refresh calls in a coroutine `Mutex` with double-check lock. Mark refresh request with `markAsRefreshTokenRequest()` to prevent infinite loops.
+- 401 responses **must** carry `WWW-Authenticate: Bearer` to trigger the refresh flow.
+- Use a **separate** `HttpClient` for the refresh call to avoid nested engine deadlocks.
 
 ### Server Lifecycle & Cancellation
 - Use `HttpRequestLifecycle` plugin (`cancelCallOnClose = true`) to propagate cancellation on client disconnect (CIO/Netty).
@@ -51,4 +53,7 @@ Use these references for specific Ktor domains:
 
 <constraints>
 Always verify Ktor client engine target compatibility and enforce the double-checked lock Mutex pattern for authentication.
+Never install HttpTimeout in MockEngine-backed test clients — it causes deadlocks on KMP native targets during auth retries.
+Always include WWW-Authenticate: Bearer in 401 mock responses to trigger the Auth plugin refresh flow.
+Use url.pathSegments (not encodedPath) in sendWithoutRequest for KMP compatibility.
 </constraints>

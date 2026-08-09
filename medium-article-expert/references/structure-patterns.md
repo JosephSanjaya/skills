@@ -1,6 +1,6 @@
 # Article Structure & Layout
 
-> Select the appropriate structural template in Phase 3.
+> Lock angle + 3–5 key points + spine first ([outline-and-titles.md](outline-and-titles.md)). Then select the section blueprint below.
 
 ---
 
@@ -44,7 +44,21 @@
 
 ---
 
-## 4. Length & Pacing Guidelines
+## 4. Spine quick-pick (from outline stage)
+
+| Spine | Best for |
+| :--- | :--- |
+| BAB | Reader already feels the problem (migrations, pain → fix) |
+| PAS | Strong hook; problem-aware readers |
+| AIDA | Unaware readers; build desire then CTA |
+| Zigzag | Lessons / war stories (setbacks ↔ wins) |
+| ACT | Per-section micro-structure (Attention → Context → Takeaway) |
+
+Stack: PAS hook + benefit body + AIDA close when the piece needs both tension and a close.
+
+---
+
+## 5. Length & Pacing Guidelines
 
 ### Targets
 | Section Type | Target Word Count |
@@ -54,7 +68,7 @@
 | **Core Technical Fix/Architecture** | 250–400 words |
 | **Code Walkthrough** | 50-word intro + code block + 50-word detail |
 | **Conclusion** | 75–120 words |
-| **Total Article** | **1,200–2,000 words** |
+| **Total Article** | **~7-minute soft center** (~1,200–2,000 words); purpose beats padding |
 
 ### The Zigzag Pacing Rule (For articles > 1,500 words)
 Prevent reader fatigue by alternating between tension and release:

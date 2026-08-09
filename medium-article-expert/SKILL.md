@@ -1,43 +1,59 @@
 ---
 name: medium-article-expert
-description: >-
-  Expert guidance for writing, structuring, and publishing high-engagement Medium articles. Use when writing a Medium article from scratch, improving or editing a Medium draft, optimizing for the Medium Boost program, reviewing Medium formatting, structuring a Medium post, checking pre-publish SEO settings, or asking about Medium writing best practices. Covers Zinsser/Halbert prose principles, Sugarman's Slippery Slide, BAB/ACT/Zigzag narrative structures, Medium-specific formatting (kicker, separators, code blocks, image widths), SEO settings (slug, display title, canonical URL), Boost quality guidelines, and publishing strategy.
+description: "Expert guidance for writing, structuring, outlining, titling, and publishing high-engagement Medium articles. Use whenever the user mentions Medium, Boost nomination, Medium titles/subtitles/kickers, article outlines, key points from a topic, SEO slugs/canonicals, or drafting/editing a Medium post — even if they only share a rough topic or research notes and do not say \"Medium article.\" Covers topic→angle→3–5 key points→title factory, Zinsser/Halbert prose, Sugarman's Slippery Slide, BAB/PAS/AIDA/ACT/Zigzag spines, Medium formatting, Boost quality bars, and pre-publish SEO."
 ---
 
 # Medium Article Expert
 
-Draft, edit, and optimize technical articles for the Medium Boost nomination program using minimalist writing principles and human-authentic prose.
+Draft, outline, title, edit, and publish technical articles for Medium Boost using first-hand specificity and human-authentic prose.
 
-<instructions>
-Structure narrative flow using BAB or ACT templates, prune qualifiers and AI slop words, enforce sentence length rhythm, and optimize SEO and layout parameters before publishing.
-</instructions>
+<workflow>
+## 1. Decision tree
 
-## 1. Quick Decision Tree
+| Need | Action |
+| :--- | :--- |
+| Topic, idea, notes, or research dump → outline + titles | Run Topic→Points→Titles ([references/outline-and-titles.md](references/outline-and-titles.md)) **before drafting** |
+| Orient tone / audience | Phase 0 ([references/tone-guide.md](references/tone-guide.md)) |
+| Extra title variants after outline | ([references/title-patterns.md](references/title-patterns.md)) |
+| Section blueprints (migration / architecture / playbook) | ([references/structure-patterns.md](references/structure-patterns.md)) |
+| Edit prose / kill AI slop | ([references/writing-rules.md](references/writing-rules.md), [references/humanizing-ai-writing.md](references/humanizing-ai-writing.md)) |
+| Mechanical scan | `python3 scripts/validate_draft.py <draft.md>` |
+| Pre-publish Boost + SEO check | ([references/validation.md](references/validation.md), [references/boost-strategy.md](references/boost-strategy.md)) |
+| Layout shell | ([assets/article-template.md](assets/article-template.md)) |
+| Craft / Slippery Slide depth | ([references/crafting-engaging-articles.md](references/crafting-engaging-articles.md)) |
+</workflow>
 
-- **Orient the article context & tone** → Run Phase 0 Orientation ([references/tone-guide.md](references/tone-guide.md))
-- **Generate search-optimized titles** → Run Naming Templates ([references/title-patterns.md](references/title-patterns.md))
-- **Select article structure blueprint** → Match Layout Structures ([references/structure-patterns.md](references/structure-patterns.md))
-- **Edit prose and remove AI slop** → Apply Writing Rules & Blacklists ([references/writing-rules.md](references/writing-rules.md))
-- **Scan draft for mechanical violations** → Run Automated Validation Script ([scripts/validate_draft.py](scripts/validate_draft.py))
-- **Run final pre-publish validation** → Execute Final Curation Check ([references/validation.md](references/validation.md))
-- **Optimize SEO settings & URL slugs** → Configure Meta & Canonical Links ([references/boost-strategy.md](references/boost-strategy.md))
+<tools>
+## 2. Validate draft
 
-## 2. Fast Command Tools
-
-Run the automated Python scan to detect banned words, qualifiers, semicolons, and flat sentence rhythm:
 ```bash
 python3 scripts/validate_draft.py <path_to_draft.md>
 ```
 
-## 3. Reference Assets & Templates
+Detects banned words, qualifiers, semicolons, flat sentence rhythm.
+</tools>
 
-- **Visual Article Layout:** [article-template.md](assets/article-template.md)
-- **Draft Validation Rules:** [validation.md](references/validation.md)
-- **Pacing & Word Blacklist:** [writing-rules.md](references/writing-rules.md)
-- **Crafting Engaging Articles:** [crafting-engaging-articles.md](references/crafting-engaging-articles.md)
-- **Humanizing AI-Assisted Writing:** [humanizing-ai-writing.md](references/humanizing-ai-writing.md)
+<references>
+## 3. Progressive disclosure
+
+- **Outline + titles (topic → angle → 3–5 points → 10–20 titles):** [outline-and-titles.md](references/outline-and-titles.md)
+- **Title templates (engineering patterns):** [title-patterns.md](references/title-patterns.md)
+- **Section blueprints:** [structure-patterns.md](references/structure-patterns.md)
+- **Tone:** [tone-guide.md](references/tone-guide.md)
+- **Writing rules / blacklist:** [writing-rules.md](references/writing-rules.md)
+- **Humanizing AI prose:** [humanizing-ai-writing.md](references/humanizing-ai-writing.md)
+- **Engagement craft:** [crafting-engaging-articles.md](references/crafting-engaging-articles.md)
+- **Boost + SEO:** [boost-strategy.md](references/boost-strategy.md)
+- **Final checklist:** [validation.md](references/validation.md)
+- **Template:** [article-template.md](assets/article-template.md)
+</references>
 
 <constraints>
-Do NOT generate full article drafts in a single response. You **must** write section-by-section. Ensure no qualifiers are used, no sentence starts with "However" or "Additionally", and all self-promotion is placed **only** at the absolute bottom.
-Always run the validate_draft.py script or check references/validation.md before responding. You **must** avoid banned slop words.
+- Write section-by-section. Do not dump a full article in one response.
+- When the user brings a topic without a locked outline/title, emit the outline-and-titles output contract first.
+- No qualifiers. No sentence starting with "However" or "Additionally".
+- Self-promotion only at the absolute bottom.
+- Run `validate_draft.py` or check [validation.md](references/validation.md) before claiming a draft is publish-ready.
+- Avoid banned AI-slop words ([writing-rules.md](references/writing-rules.md)).
+- Titles must be accurate + specific: curiosity gap anchored to a true payoff; subtitle extends, never repeats; body delivers the title promise without a first-paragraph caveat.
 </constraints>

@@ -36,6 +36,8 @@ Customize the metadata in the Medium settings panel **before** publishing:
 - **The Reality Check Rule:** If a user reads *only* the meta-description, they must not feel misled after spending 30 seconds on the page. Conserve the "Trust Multiplier."
 - **Custom URL Slug:** Customize the URL slug to contain keyword-rich strings. *Warning: URL slugs cannot be edited after the article goes live.*
 - **Canonical URLs:** If cross-posting from a personal blog, set a canonical URL pointing to the original post. This tells search crawlers the primary source is your domain, protecting independent SEO.
+- **AI disclosure:** If AI assisted the piece, disclose in the first two paragraphs. Undisclosed AI → network-only distribution; AI-generated writing is barred from Partner Program paywall (policy as of May 2024 — verify live guidelines).
+- **Cover image:** Must represent the story with the title/subtitle. No cover can beat a poorly chosen or misleading AI cover for Boost eligibility.
 
 ---
 

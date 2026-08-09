@@ -1,6 +1,6 @@
 # Title Naming Patterns
 
-> Generate 5 options in Phase 1. Avoid clickbait and vague nouns.
+> Prefer the full Topic→Points→Titles flow in [outline-and-titles.md](outline-and-titles.md) when starting from a raw topic. Use this file to generate extra engineering-flavored variants after the angle and key points exist. Target 10–20 options, shortlist 3, pick 1. Avoid clickbait and vague nouns.
 
 ---
 
@@ -9,15 +9,18 @@
 A strong technical title on Medium must:
 1. **Name the specific technology or problem:** Never use vague generalizations.
 2. **Signal a concrete lesson or outcome:** Show the value, not just the topic.
-3. **Be concise:** Target under 12 words.
+3. **Be concise:** Target under 12 words (~60 characters for feeds/search).
 4. **Be search-optimized:** Write the title such that someone googling the problem would click it.
-5. **Avoid marketing jargon:** No "unlocking the power," "leveraging," or "revolutionary."
+5. **Keep the promise:** Body must deliver the title without a first-paragraph caveat (Medium Boost disqualifier if title/subtitle/cover misrepresent).
+6. **Avoid marketing jargon:** No "unlocking the power," "leveraging," or "revolutionary."
+
+Pair with a sentence-case subtitle that *extends* the title (specific promise), and an optional short kicker.
 
 ---
 
 ## 2. Naming Templates
 
-Use these 5 patterns to generate options:
+Use these patterns (plus How-we / Scaling / Colon / Lessons / Number-payoff / Metaphor / Contrarian in outline-and-titles.md):
 
 ### Pattern 1: [Technology]: [Outcome / Lesson Learned]
 *Uses a colon to separate the tech from the practical outcome.*

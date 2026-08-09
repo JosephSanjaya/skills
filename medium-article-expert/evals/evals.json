@@ -1,0 +1,23 @@
+{
+  "skill_name": "medium-article-expert",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to write a Medium article about our Android team migrating from Apollo Kotlin 3 to 4. We hit a CacheMissException that wasn't in the docs, fixed it by changing the normalized cache key strategy, and cut cold-start network calls ~40%. Help me turn this into key points and titles first — don't draft the full article yet.",
+      "expected_output": "Emits ANGLE/JTBD/SPINE/KEY POINTS (3–5 with evidence)/10–20 TITLES→shortlist→pick/SUBTITLE/KICKER/ACCURACY block. No full article dump. Titles accurate to the Apollo migration stake.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Topic only: 'burnout for staff engineers.' No personal story yet. Use the medium-article-expert outline flow and push me for a first-hand angle before titles.",
+      "expected_output": "Fails or challenges derivative angle; asks for / requires first-hand stake; still produces output contract only after stake is named (or clearly marks angle as incomplete).",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Here's my locked outline and title for a Medium post about Zigzag pacing in long engineering posts. Edit only the opening paragraph for Slippery Slide — don't regenerate titles.",
+      "expected_output": "Skips outline-and-titles factory; edits opening only; section-by-section behavior; no title factory dump.",
+      "files": []
+    }
+  ]
+}

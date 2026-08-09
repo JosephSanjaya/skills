@@ -1,0 +1,35 @@
+{
+  "skill_name": "kotlin-mcp-server-expert",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm building a Kotlin MCP server that wraps our internal REST API. I need a tool called `search_customers` that takes a `query` string (required), an optional `limit` (integer, 1-100, default 20), and an optional `status` filter that can be 'active', 'inactive', or 'all'. The handler should call a suspend function `customerApi.search(query, limit, status)` and return a list of customers. If the query is blank, return an error. Show me the full tool registration including inputSchema, validation, and the proper CallToolResult structure.",
+      "expected_output": "Complete addTool call with: ToolSchema using buildJsonObject with all three params, enum for status, required=[query], argument validation with early return isError=true for blank query, proper CallToolResult with TextContent. Should also handle CancellationException correctly.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "My Kotlin MCP server needs to serve files from a sandboxed directory. I want a resource template like `file://{path}` that reads files but only from `/app/data/` — any path traversal attempts should be blocked. Show me how to implement addResourceTemplate with proper canonicalFile path sandboxing, the right ReadResourceResult return type, and how to handle the file-not-found case.",
+      "expected_output": "addResourceTemplate with uriTemplate, canonicalFile + startsWith sandbox check, ReadResourceResult with TextResourceContents, proper error for path traversal (throw or isError), mimeType handling.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I'm deploying my Kotlin MCP server with Ktor for remote clients. I need: 1) a Streamable HTTP server on port 8080 bound to 127.0.0.1, 2) health endpoints at /health and /health/ready, 3) the server should log each tool invocation with duration. Show me the complete Ktor setup including embeddedServer, mcpStreamableHttp, routing for health checks, and how to instrument tool call timing in a handler.",
+      "expected_output": "embeddedServer(CIO, host='127.0.0.1', port=8080) with routing, mcpStreamableHttp call, /health returning 200, /health/ready with readiness logic, tool handler with System.currentTimeMillis() timing and logger.info logging.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "I want to write a unit test for my MCP tool that fetches data from an external API. The tool should return isError=true when the API throws an IOException, and return the correct data on success. Show me how to use ChannelTransport to test this with mocked dependencies using runTest.",
+      "expected_output": "ChannelTransport.createLinkedPair(), runTest block, listOf(launch{client.connect}, launch{server.createSession}).joinAll(), client.callTool assertions, assertEquals(true, result.isError) for error case, proper cleanup with client.close/server.close.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "My MCP server has 60+ tools across categories (core, analytics, reporting, admin). I'm concerned about context window bloat. How should I architect the toolset gating system so only a default set of tools is registered at startup, and an LLM can activate additional categories on demand? Include the discover_tools meta-tool pattern and how to notify clients after activating a category.",
+      "expected_output": "enabledToolsets config, conditional registerXxxTools() calls, discover_tools meta-tool implementation with sendToolListChanged(), ServerCapabilities.Tools(listChanged=true), explanation of token efficiency rationale.",
+      "files": []
+    }
+  ]
+}

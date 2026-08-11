@@ -1,0 +1,101 @@
+{
+  "skill_name": "testing-expert",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Write Kotest tests for this Kotlin class using TDD principles:\n\n```kotlin\nclass DiscountCalculator {\n    fun calculate(orderTotal: Double, couponCode: String?): Double {\n        if (couponCode == null) return orderTotal\n        return when (couponCode) {\n            \"SAVE10\" -> orderTotal * 0.90\n            \"SAVE20\" -> orderTotal * 0.80\n            \"HALFOFF\" -> orderTotal * 0.50\n            else -> throw IllegalArgumentException(\"Unknown coupon: $couponCode\")\n        }\n    }\n}\n```\n\nMake sure the tests cover happy path, edge cases, and the exception case. Use FunSpec.",
+      "expected_output": "FunSpec tests with AAA structure, plain English test names, hard-coded expected values (no computed `expected = input * 0.9`), one assertion per test, exception test using shouldThrow, no stub assertions, no ambient time usage.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "uses-funspec",
+          "description": "Test class extends FunSpec",
+          "type": "contains",
+          "value": "FunSpec"
+        },
+        {
+          "id": "no-domain-knowledge-leak",
+          "description": "Expected values are hard-coded, not computed from inputs (no `* 0.9` in test body)",
+          "type": "not_contains",
+          "value": "expected = "
+        },
+        {
+          "id": "uses-should-throw",
+          "description": "Exception case uses shouldThrow",
+          "type": "contains",
+          "value": "shouldThrow"
+        },
+        {
+          "id": "plain-english-names",
+          "description": "Test names are plain English sentences, not MethodName_Scenario_Result",
+          "type": "not_regex",
+          "value": "\"[A-Z]\\w+_\\w+_\\w+\""
+        },
+        {
+          "id": "null-coupon-covered",
+          "description": "Null coupon code case is tested",
+          "type": "regex",
+          "value": "null|no coupon|without coupon"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Review this Kotlin test and tell me what anti-patterns it has:\n\n```kotlin\nclass UserServiceTest : FunSpec({\n    val repo = mockk<UserRepository>()\n    val emailGateway = mockk<EmailGateway>()\n    val sut = UserService(repo, emailGateway)\n\n    test(\"RegisterUser_ValidInput_ReturnsUser\") {\n        val userId = \"abc-123\"\n        val request = CreateUserRequest(name = \"Alice\", email = \"alice@example.com\")\n        val expected = User(id = userId, name = request.name, email = request.email)\n\n        coEvery { repo.save(any()) } just Runs\n        coEvery { emailGateway.send(any()) } just Runs\n        coEvery { repo.findById(userId) } returns expected\n\n        sut.register(request)\n\n        coVerify { repo.save(any()) }\n        coVerify { repo.findById(any()) }  // verify stub was called\n        coVerify(exactly = 1) { emailGateway.send(match { it.to == \"alice@example.com\" }) }\n    }\n})\n```",
+      "expected_output": "Should identify: (1) AP6 — asserting stub interaction on `repo.findById` which is incoming data not an outgoing side effect; (2) NAMING — `RegisterUser_ValidInput_ReturnsUser` is a rigid MethodName_Scenario_Result pattern; (3) missing assertion on the return value of `sut.register()`.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "identifies-stub-assertion",
+          "description": "Identifies that verifying repo.findById is an anti-pattern (asserting stub interaction)",
+          "type": "contains_any",
+          "value": ["stub", "AP6", "findById should not be verified", "incoming"]
+        },
+        {
+          "id": "identifies-naming",
+          "description": "Flags the MethodName_Scenario_Result naming pattern",
+          "type": "contains_any",
+          "value": ["naming", "NAMING", "plain English", "MethodName_Scenario", "RegisterUser_"]
+        },
+        {
+          "id": "suggests-fix",
+          "description": "Provides corrected test or concrete fix guidance",
+          "type": "contains_any",
+          "value": ["shouldBe", "result", "coVerify { emailGateway", "remove the coVerify { repo.findById"]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I have this production class. It uses `LocalDateTime.now()` internally. How should I refactor it so it's testable, and write the tests?\n\n```kotlin\ndata class AuditEntry(val event: String, val timestamp: LocalDateTime)\n\nclass AuditService {\n    fun record(event: String): AuditEntry {\n        return AuditEntry(event, timestamp = LocalDateTime.now())\n    }\n}\n```",
+      "expected_output": "Refactors AuditService to inject time (either as a parameter `now: LocalDateTime` or a Clock interface). Writes deterministic tests that pass a fixed time. Does NOT use mockkStatic on LocalDateTime.now().",
+      "files": [],
+      "assertions": [
+        {
+          "id": "removes-ambient-time",
+          "description": "Refactored production class does not call LocalDateTime.now() internally",
+          "type": "not_regex",
+          "value": "LocalDateTime\\.now\\(\\)"
+        },
+        {
+          "id": "injects-time",
+          "description": "Time is injected as a parameter or via a Clock interface",
+          "type": "contains_any",
+          "value": ["now: LocalDateTime", "Clock", "FixedClock", "fun record(event: String, now"]
+        },
+        {
+          "id": "test-is-deterministic",
+          "description": "Test uses a fixed known timestamp, not a dynamic one",
+          "type": "regex",
+          "value": "LocalDateTime\\.of|LocalDateTime\\.parse|fixedTime|fixedNow|testTime|testNow|val now ="
+        },
+        {
+          "id": "no-mockkstatic",
+          "description": "Does not use mockkStatic to mock LocalDateTime.now() — that's a workaround, not a fix",
+          "type": "not_contains",
+          "value": "mockkStatic"
+        }
+      ]
+    }
+  ]
+}

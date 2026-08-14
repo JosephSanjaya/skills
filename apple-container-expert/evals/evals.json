@@ -1,0 +1,111 @@
+{
+  "skill_name": "apple-container-expert",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm trying to use apple container to run PostgreSQL for local dev but I keep getting this error when the container starts: 'initdb: error: directory \"/var/lib/postgresql/data\" exists but is not empty'. I created a named volume called pgdata and mounted it to that path. What's wrong and how do I fix it?",
+      "expected_output": "Identify the EXT4 lost+found directory issue. Explain that EXT4-formatted volumes always contain a lost+found directory at root, which causes PostgreSQL initdb to fail because it requires an empty directory. Provide the fix: set PGDATA env var to a subdirectory like /var/lib/postgresql/data/pgdata. Show the correct container run command.",
+      "assertions": [
+        {
+          "name": "identifies_lost_and_found_cause",
+          "description": "Response identifies lost+found or EXT4 formatting as the root cause",
+          "type": "contains_any",
+          "values": ["lost+found", "EXT4", "ext4", "filesystem", "volume root"]
+        },
+        {
+          "name": "provides_pgdata_subdirectory_fix",
+          "description": "Response explains to use a subdirectory and provides PGDATA env var fix",
+          "type": "contains_any",
+          "values": ["PGDATA=/var/lib/postgresql/data/pgdata", "-e PGDATA", "subdirectory", "sub-directory", "sub directory"]
+        },
+        {
+          "name": "shows_correct_command",
+          "description": "Response provides a corrected container run command",
+          "type": "contains_any",
+          "values": ["container run", "PGDATA", "pgdata"]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "container system start is just hanging at 'Verifying apiserver is running...' and never completes. I'm on macOS 26 with an M3 MacBook Pro. My project is saved in my Documents folder. What should I do?",
+      "expected_output": "Identify the known vmnet bug where helper binaries in ~/Documents or ~/Desktop cause hangs. Advise moving the project directory outside Documents. Mention Ctrl-C to interrupt and that the system may be wedged requiring a reboot. Also optionally mention the external disk issue #621.",
+      "assertions": [
+        {
+          "name": "identifies_documents_folder_cause",
+          "description": "Response identifies Documents/Desktop as the likely cause of the vmnet bug",
+          "type": "contains_any",
+          "values": ["Documents", "Desktop", "vmnet", "helper", "binary"]
+        },
+        {
+          "name": "advises_moving_project",
+          "description": "Response recommends moving the project out of Documents",
+          "type": "contains_any",
+          "values": ["move", "relocate", "outside Documents", "different folder", "different location", "not in Documents"]
+        },
+        {
+          "name": "mentions_interrupt_or_recovery",
+          "description": "Response mentions how to interrupt or recover from the hang",
+          "type": "contains_any",
+          "values": ["Ctrl-C", "Control-C", "reboot", "system stop", "restart", "wedged"]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm on an M4 MacBook Pro with macOS 26. I do mostly backend dev — running one or two services at a time like a Postgres DB or Redis, some builds. Should I use apple/container or OrbStack? I care about resource usage because I also run heavy ML stuff natively and need memory for that. I don't need Docker Compose.",
+      "expected_output": "Recommend apple/container given the constraints: single-service workloads, no Compose needed, memory-sensitive (apple/container uses ~51 MB idle vs ~1.6 GB for OrbStack). Mention the startup latency tradeoff honestly. Note that bind-mount I/O is slower but won't matter for DB/cache single-service workloads. Should be a nuanced, honest recommendation.",
+      "assertions": [
+        {
+          "name": "recommends_apple_container",
+          "description": "Response recommends apple/container given the user's constraints",
+          "type": "contains_any",
+          "values": ["apple/container", "apple container", "recommend container", "go with container", "use container"]
+        },
+        {
+          "name": "mentions_idle_ram_advantage_with_correct_number",
+          "description": "Response cites apple/container's ~51 MB idle footprint specifically (not just 'idle' or vague 'low memory')",
+          "type": "contains_any",
+          "values": ["51 MB", "51MB", "51 mb", "22×", "32×", "22x", "32x", "22-32"]
+        },
+        {
+          "name": "orbstack_idle_ram_not_understated",
+          "description": "Response does NOT claim OrbStack idle is <500 MB (correct is ~1.6 GB); baseline answers got this wrong",
+          "type": "not_contains_any",
+          "values": ["300 MB", "400 MB", "500 MB", "300-600", "300–600", "300MB", "400MB", "500MB"]
+        },
+        {
+          "name": "acknowledges_startup_tradeoff",
+          "description": "Response is honest about the startup latency tradeoff",
+          "type": "contains_any",
+          "values": ["startup", "cold start", "slower", "latency", "second", "1071", "3x", "tradeoff"]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "How do I set up service discovery between multiple containers using apple container? I want to have a web app container talk to a postgres container by hostname, not IP address.",
+      "expected_output": "Explain the embedded DNS feature. Show the container system dns create <domain> command, running containers with --name, and how they resolve as <name>.<domain> from the host and from other containers. Mention macOS 26 requirement for container-to-container networking.",
+      "assertions": [
+        {
+          "name": "uses_container_system_dns_command",
+          "description": "Response uses `container system dns create` (apple/container's embedded DNS), NOT just `container network create` (different feature)",
+          "type": "contains_any",
+          "values": ["container system dns", "system dns create", "dns create", "embedded DNS", "/etc/resolver"]
+        },
+        {
+          "name": "shows_name_flag",
+          "description": "Response shows the --name flag for named container registration",
+          "type": "contains_any",
+          "values": ["--name", "named container", "container name"]
+        },
+        {
+          "name": "shows_domain_resolution_pattern",
+          "description": "Response explains the <name>.<domain> resolution pattern",
+          "type": "contains_any",
+          "values": [".test", "<name>.", "hostname", "resolves as", "domain"]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "skill_name": "koog-expert",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We're adding an AI support chat to our Ktor backend (JDK 17, already on Ktor 3). I need a /chat POST route that uses Koog with OpenAI, falls back to local Ollama, registers two tools for order status and address update, moderates the user text first, and does not blow our token budget on long threads. Please write the plugin install + route + tools. Keys come from env.",
+      "expected_output": "Uses install(Koog), promptExecutor-era APIs (aiAgent/llm helpers), env keys, moderation before the agent, ToolSet/@Tool/@LLMDescription, maxAgentIterations set, and history compression gated on a threshold — not after every call.",
+      "files": [],
+      "expectations": [
+        "Uses install(Koog) and aiAgent() or equivalent koog-ktor route helpers",
+        "Uses promptExecutor (never AIAgent(executor=))",
+        "API keys loaded from environment variables",
+        "Moderates user input before running the agent",
+        "Tools use @Tool and @LLMDescription",
+        "maxAgentIterations or maxIterations is set explicitly",
+        "History compression is threshold-gated (onCondition / HistoryCompressionConfig), not unconditional"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We have a Compose Multiplatform app (Android + desktop) that should break a user goal into a typed GoalDecomposition data class using Koog. Product said no cloud API keys in the APK. Show the shared agent/strategy in commonMain and how the Android UI is supposed to get results.",
+      "expected_output": "Shared @Serializable model + strategy in commonMain; cloud inference goes through a backend (or LiteRT on-device). Does not embed OPENAI_API_KEY in the Android binary.",
+      "files": [],
+      "expectations": [
+        "Defines a @Serializable GoalDecomposition (or equivalent) for UI binding",
+        "Does not put provider API keys in androidMain/commonMain client code as the production path",
+        "Recommends calling a Ktor/Spring Koog backend for cloud models",
+        "Mentions structured output (nodeLLMRequestStructured / executeStructured) rather than regex-parsing free text"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit this Koog graph: we filter onToolCalls { it.tool == \"search\" }, we compress history on every edge after executeTools with no size check, and the Ktor route reuses a single AIAgent val created at application start. What's wrong and how do we fix it?",
+      "expected_output": "Flags parallel-tool drop (#2153), unconditional compression cost, and shared-agent write-session races. Fix: onToolCalls { true } + parallel execute, threshold compression, one agent per request via aiAgent().",
+      "files": [],
+      "expectations": [
+        "Identifies onToolCalls filter dropping unmatched parallel tool calls",
+        "Identifies compressing every iteration as a token/latency bug",
+        "Identifies sharing one AIAgent across concurrent Ktor requests as unsafe",
+        "Fix uses catch-all onToolCalls or nodeExecuteTools(parallel=true)",
+        "Fix creates an agent per request (plugin aiAgent helper or equivalent)"
+      ]
+    }
+  ]
+}

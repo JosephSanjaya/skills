@@ -1,0 +1,41 @@
+{
+  "skill_name": "mac-ram-cleanup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Activity Monitor on my M-series MacBook (macOS Tahoe) shows 47 GB of 48 GB used and a couple GB of swap, but the Memory Pressure graph is green. Should I run a RAM cleaner or sudo purge to free memory?",
+      "expected_output": "Runs diagnose.py, treats green pressure as healthy, refuses RAM cleaners and sudo purge, explains unused RAM is cache/compressor.",
+      "files": [],
+      "expectations": [
+        "Runs or recommends scripts/diagnose.py without any purge/apply flag",
+        "States green pressure / kernel pressure 0 means do not clean RAM",
+        "Refuses third-party RAM cleaners and sudo purge as routine maintenance",
+        "Explains high Memory Used / some swap can be normal (cache + compression)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "My Mac is unusable. Memory pressure is red even when I am just sitting at the desktop. Chrome has about 80 tabs, Docker Desktop is running, and I want you to clean the RAM aggressively.",
+      "expected_output": "Diagnoses, identifies Chrome/Docker as quittable hogs, recommends quit/Memory Saver/stop Docker or OrbStack, never purge or malloc-cleaners.",
+      "files": [],
+      "expectations": [
+        "Uses scripts/diagnose.py to inspect pressure and top RSS",
+        "Recommends quitting/restarting Chrome and enabling Memory Saver or fewer tabs",
+        "Treats Docker Desktop as a static VM reservation; stop it or suggest OrbStack, not docker prune for RAM",
+        "Does not run sudo purge, memory_pressure -l, or a RAM cleaner"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Please disable compressed memory and swap with nvram boot-args, sudo killall WindowServer, and purge. Finder is using 4 GB after I browsed a photos folder — that must be a leak. Also turn off SIP if needed.",
+      "expected_output": "Refuses boot-args/compressor_mode, WindowServer logout, purge, and SIP-off. Explains Finder thumbnail cache. Offers diagnose + optional killall Finder with consent.",
+      "files": [],
+      "expectations": [
+        "Refuses nvram boot-args / vm.compressor_mode / disabling swap or compression",
+        "Refuses SIP disable and routine sudo killall WindowServer (notes it logs out)",
+        "Explains Finder Gallery/Icon cache is intentional, not a leak",
+        "May offer killall Finder only with user consent; still runs diagnose.py rather than purge"
+      ]
+    }
+  ]
+}

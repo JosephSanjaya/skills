@@ -1,0 +1,47 @@
+{
+  "skill_name": "latex-expert",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need a professional A4 technical report for our lab (not a journal). Corporate navy #003366, numbered citations, a results table with decimal-aligned measurements, and it has to look official rather than like a student homework. Please write the preamble plus a one-page skeleton (title, one section, one table, bibliography hook). We are starting from scratch — no publisher template.",
+      "expected_output": "KOMA scrreprt/scrartcl + LuaLaTeX + named Brand + microtype + booktabs/siunitx S + biblatex biber numeric-comp + latexmk. No CM, no fancyhdr on KOMA, no natbib/BibTeX.",
+      "files": [],
+      "expectations": [
+        "KOMA class (scrreprt or scrartcl), not article/report/book",
+        "LuaLaTeX as compile engine",
+        "Loads microtype",
+        "Named navy/brand color from #003366",
+        "booktabs toprule/midrule/bottomrule, no vertical | spec",
+        "siunitx S (or decimal align) on numeric cols",
+        "biblatex backend=biber",
+        "No fancyhdr on KOMA"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Review this table and rewrite it to publication quality. Keep the data:\n\n\\begin{tabular}{|l|c|c|}\n\\hline\nDevice & Rate (MHz) & Error \\\\\n\\hline\\hline\nA & 12.0 & 0.013 \\\\\n\\hline\nB & 8.5 & 0.102 \\\\\n\\hline\n\\end{tabular}\n\nThis is going into an internal technical report, not IEEE.",
+      "expected_output": "booktabs, no vertical rules, no double hline, siunitx S. Not IEEEtran.",
+      "files": [],
+      "expectations": [
+        "Removes vertical rules",
+        "Uses \\toprule / \\midrule / \\bottomrule",
+        "No \\hline\\hline",
+        "siunitx S or equivalent numeric align",
+        "No IEEEtran / journal class"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I'm writing my master's thesis in this repo's alcazar/ template. Add a new results chapter file with one professional comparison table (two algorithms, runtime in ms, error). Do not change the document class or compiler. Also tell me the latexmk command to build.",
+      "expected_output": "Keep report + pdfLaTeX/latexmk -pdf -shell-escape. New table booktabs+siunitx. No scrbook/Xe/Lua switch.",
+      "files": [],
+      "expectations": [
+        "Keeps report class; no scrbook/memoir switch",
+        "pdfLaTeX / latexmk -pdf (not xe/lua as required engine)",
+        "Mentions -shell-escape or Makefile",
+        "New table booktabs, not Alcazar \\hline grid",
+        "No fontspec/inputenc conflict"
+      ]
+    }
+  ]
+}

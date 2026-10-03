@@ -53,6 +53,7 @@ graph TD
 
 ## Project Structure
 - `android-official-skills/`: Submodule containing official Android developer skills.
+- `android-testing-skills/`: Submodule containing Android testing skills (unit, Compose, instrumentation, ADB).
 - `compose-performance-skills/`: Submodule containing Compose performance optimization guidelines.
 - `anthropics-skills/`: Submodule containing Anthropic prompt templates.
 - `kotlin-official-skills/`: Submodule containing official Kotlin developer skills.
@@ -149,6 +150,7 @@ This repository includes and links official agent skills from these projects:
 - [anthropics/skills](https://github.com/anthropics/skills) by Anthropic.
 - [Kotlin/kotlin-agent-skills](https://github.com/Kotlin/kotlin-agent-skills) by JetBrains.
 - [skydoves/compose-performance-skills](https://github.com/skydoves/compose-performance-skills) by skydoves.
+- [skydoves/android-testing-skills](https://github.com/skydoves/android-testing-skills) by skydoves.
 
 ## License
 This repository is licensed under the MIT License. See the [LICENSE](LICENSE) file for the full text.

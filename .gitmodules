@@ -10,3 +10,6 @@
 [submodule "kotlin-official-skills"]
 	path = kotlin-official-skills
 	url = https://github.com/Kotlin/kotlin-agent-skills.git
+[submodule "android-testing-skills"]
+	path = android-testing-skills
+	url = https://github.com/skydoves/android-testing-skills.git

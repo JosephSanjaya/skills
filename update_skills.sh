@@ -4,7 +4,7 @@
 # Exit immediately on error, treat unset variables as errors, fail-fast in pipelines
 set -euo pipefail
 
-echo "=== Antigravity Submodule Updater & Symlink Installer ==="
+echo "=== Agent Skills Submodule Updater & Installer ==="
 
 # Check for git
 if ! command -v git &> /dev/null; then

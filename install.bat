@@ -2,7 +2,7 @@
 :: Install script for Windows
 
 echo =======================================================
-echo === Antigravity Skill Symlinker Installer (Windows) ===
+echo === Agent Skills Installer (Windows) ===
 echo =======================================================
 
 :: Check for python in PATH

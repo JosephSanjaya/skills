@@ -5,7 +5,7 @@
 # treat unset variables as an error, and prevent errors in pipeline masks.
 set -euo pipefail
 
-echo "=== Antigravity Skill Symlinker Installer (macOS/Linux) ==="
+echo "=== Agent Skills Installer (macOS/Linux) ==="
 
 # Check for python3
 if ! command -v python3 &> /dev/null; then

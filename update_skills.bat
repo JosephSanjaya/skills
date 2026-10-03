@@ -2,7 +2,7 @@
 :: Windows submodule updater and symlink re-installer wrapper
 
 echo =======================================================
-echo === Antigravity Submodule Updater (Windows)          ===
+echo === Agent Skills Submodule Updater (Windows)         ===
 echo =======================================================
 
 :: Check for git in PATH

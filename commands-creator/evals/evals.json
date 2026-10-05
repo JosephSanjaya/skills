@@ -1,0 +1,17 @@
+{
+  "skill_name": "commands-creator",
+  "evals": [
+    {"id": 1, "name": "write-tests-command",
+     "prompt": "in /tmp/cc-fixture (kotlin gradle project) make me a slash command /write-tests that takes a kotlin file path and writes good unit tests for it, runs them, and tells me coverage gaps",
+     "expected_output": "Project command file with frontmatter (description, argument-hint), skeleton blocks, routes to testing-expert skill, verify step runs gradle tests, explicit output block.",
+     "files": []},
+    {"id": 2, "name": "ship-workflow-side-effects",
+     "prompt": "turn my pre-push routine into a user-level command: I run ./gradlew detekt, then ./gradlew testDebugUnitTest, if both green I write a conventional commit msg for staged changes, commit, and push to current branch. call it ship",
+     "expected_output": "User-level command with disable-model-invocation true, fail-fast stops on red detekt/tests, routes commit message to a commit skill (e.g. caveman:caveman-commit), narrow allowed-tools, pre-injected git context.",
+     "files": []},
+    {"id": 3, "name": "audit-verbose-code-review",
+     "prompt": "/tmp/cc-fixture/.claude/commands/code-review.md is bloated generic junk I copied from github. rewrite it so its tight and actually useful, reviewing only my current diff",
+     "expected_output": "Rewritten command on skeleton, much shorter, scoped to current diff via !`git diff` injection with allowed-tools, routes to a review skill, severity-ranked output block, before/after line count reported.",
+     "files": ["/tmp/cc-fixture/.claude/commands/code-review.md"]}
+  ]
+}

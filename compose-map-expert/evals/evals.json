@@ -1,0 +1,47 @@
+{
+  "skill_name": "compose-map-expert",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "in our android app the map uses maps-compose Clustering with clusterItemContent. when a pin is tapped i want it to grow, so i did `val size by animateDpAsState(if (selected) 54.dp else 40.dp)` and `Box(Modifier.size(size).clip(CircleShape).background(color))`. problem: sometimes the pin stays stuck halfway big or doesnt shrink back on dismiss. also i added a little bounce (spring dampingRatio 0.5) and the edges look cut off. how do i fix this properly? give me the fixed composable.",
+      "expected_output": "Explains markers are bitmaps re-rendered on draw invalidation, replaces size animation with draw-only scale, reserves overshoot room so the bounce isn't clipped, provides fixed Kotlin composable.",
+      "files": [],
+      "assertions": [
+        "Explains that Clustering markers are bitmaps re-rendered only on draw invalidation (so layout/size animation freezes)",
+        "Replaces the animated Modifier.size with a fixed layout size plus a draw-phase scale (drawWithContent/graphicsLayer lambda)",
+        "Explains the bounce overshoot is clipped by the marker bitmap bounds and reserves extra room (larger slot or margin) for the peak scale",
+        "Code keeps the marker content a fixed non-zero size (no per-frame layout size change)",
+        "Raises the selected marker above neighbours (zIndex via ClusteringMarkerProperties or equivalent)",
+        "Reads the selected state inside clusterItemContent (e.g. pin.id == selectedId) so the pin recomposes and shrinks back on dismiss"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Our transaction map (Jetpack Compose + Google Maps, Clustering from maps-compose-utils) flickers badly: every time the user pans, all the pins disappear and come back. The ViewModel does `onCameraIdle -> viewModelScope.launch { delay(500); val pins = api.pins(bounds); _state.update { it.copy(pins = pins) } }`. Users also change category filters; the API takes the selected categories (`api.pins(bounds, categories)`) and only returns matching pins. Rewrite the ViewModel loading logic so it's smooth and correct. Kotlin please.",
+      "expected_output": "Merge by stable id on pan instead of replacing, replace on filter change with a guard so a concurrent pan doesn't merge stale pins, cancel-previous request job with short debounce, notes on not tracking loaded areas.",
+      "files": [],
+      "assertions": [
+        "Merges fetched pins into existing ones by a stable id instead of replacing the list on pan",
+        "Filter/category changes replace the list rather than merge",
+        "Guards against a pan response merging into (or overriding) a pending filter replace, e.g. a pending-replace flag or generation token",
+        "Cancels the previous in-flight request when a newer viewport/filter arrives (collectLatest, Job cancel, mapLatest, or similar) including the network call",
+        "Uses a short debounce for pans (well under the original 500 ms, roughly 150-300 ms)",
+        "Does not rely on tracking an 'already loaded' bounding box to skip fetches"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "We render ~2500 merchant pins with Clustering { clusterItemContent = { MyPin(it) } } (maps-compose 8.x). It's fine at street level but if I zoom out to the whole country and back in the app stutters for a second or two each zoom step. Profiling shows tons of ComposeView / bitmap work. What's the right fix? Show code.",
+      "expected_output": "Identifies default algorithm clusters and renders everything including off-screen; switches to NonHierarchicalViewBasedAlgorithm sized from the screen with margin, guarded in onClusterManager (SideEffect every recomposition), feeds camera position to avoid empty first load, keeps compose content cheap/limits animation.",
+      "files": [],
+      "assertions": [
+        "Identifies that the default clustering algorithm clusters and renders markers for the entire dataset including off-screen areas",
+        "Recommends NonHierarchicalViewBasedAlgorithm (view-based clustering) sized from the screen in dp",
+        "Sets the algorithm in onClusterManager guarded so it is not reassigned every recomposition (or explains onClusterManager runs on every recomposition)",
+        "Handles the view-based algorithm needing the current camera position (e.g. calls onCameraChange with cameraPositionState.position) so pins show before the first pan",
+        "Keeps the full item list in Clustering rather than drip-feeding or filtering items per frame",
+        "Mentions keeping per-marker compose content cheap / limiting simultaneous marker animations"
+      ]
+    }
+  ]
+}

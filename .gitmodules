@@ -13,3 +13,6 @@
 [submodule "android-testing-skills"]
 	path = android-testing-skills
 	url = https://github.com/skydoves/android-testing-skills.git
+[submodule "gradle-skills"]
+	path = gradle-skills
+	url = https://github.com/gradle/gradle-skills.git
